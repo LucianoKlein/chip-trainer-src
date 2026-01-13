@@ -1,74 +1,144 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import ChipStack from '@/components/ChipStack.vue'
 
 /**
- * 每个红色筹码代表的数值
+ * 筹码定义（商用可扩展）
  */
-const CHIP_VALUE = 5
+const CHIP_TYPES = {
+  red: { value: 5 },
+  green: { value: 25 }
+}
 
 /**
- * 题库：筹码数量 10 ～ 100（步长 5）
+ * 题库：总数值（始终是 5 的倍数）
  */
-const targets = Array.from(
-  { length: 19 },
-  (_, i) => 10 + i * 5
-)
+const TOTAL_VALUES = [
+  50, 75, 100, 125, 150, 175, 200, 225, 250
+]
+function randomTotalValue() {
+  const min = 10
+  const max = 1000
+  const step = 5
+  const n = Math.floor(Math.random() * ((max - min) / step + 1))
+  return min + n * step
+}
+
+function splitRedStacks(count) {
+  const result = []
+  let remaining = count
+
+  // 每 20 个一组
+  while (remaining >= 20) {
+    result.push(20)
+    remaining -= 20
+  }
+
+  // 剩余 < 20 的直接一组
+  if (remaining > 0) {
+    result.push(remaining)
+  }
+
+  return result
+}
+
 
 const round = ref(0)
-const target = ref(10)          // 当前题目的“筹码个数”
-const userInput = ref('')
-const feedback = ref('idle')    // idle | correct | wrong
-const color = ref('red')
+const chipGroups = ref([])
+const correctValue = ref(0)
 
-// 剩余部分的分组（4 或 5），每一题只决定一次
-const remainderGroupSize = ref(null)
+const userInput = ref('')
+const feedback = ref('idle')
+
+function splitGreenStacks(count) {
+  const result = []
+  let remaining = count
+
+  // 1️⃣ 20 个一组（递归思想，用 while）
+  while (remaining >= 20) {
+    result.push(20)
+    remaining -= 20
+  }
+
+  // 2️⃣ 处理剩余 < 20
+  if (remaining > 0) {
+    // 特殊规则优先
+    if (remaining === 6) {
+      result.push(4, 2)
+    } else if (remaining === 7) {
+      result.push(4, 3)
+    } else {
+      // 通用规则：尽量 4 个一组
+      while (remaining >= 4) {
+        result.push(4)
+        remaining -= 4
+      }
+
+      // 剩余 1 / 2 / 3
+      if (remaining > 0) {
+        result.push(remaining)
+      }
+    }
+  }
+
+  return result
+}
+
 
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+/**
+ * 生成一题（始终包含红 + 绿）
+ */
+ function generateChips() {
+  const total = randomTotalValue() // 比如 300～2000
+
+  // 1️⃣ 全部先当成红色
+  let redCount = total / CHIP_TYPES.red.value
+
+  // 2️⃣ 随机把一部分红色换成绿色
+  // 例如：20%～40%
+  const greenRatio = 0.2 + Math.random() * 0.2
+  let greenCount = Math.floor((redCount * greenRatio) / 5) // 5 个红 = 1 个绿
+
+  // 限制绿色数量，避免“满屏绿”
+  greenCount = Math.min(greenCount, Math.floor(redCount / 5) - 1)
+  if (greenCount < 1) greenCount = 1
+
+  // 3️⃣ 扣掉被换掉的红色
+  redCount -= greenCount * 5
+
+  const groups = []
+
+  // 4️⃣ 绿色排版（20 / 4 / 2 / 3 规则）
+  const greenStacks = splitGreenStacks(greenCount)
+  for (const c of greenStacks) {
+    groups.push({ color: 'green', count: c })
+  }
+
+  // 5️⃣ 红色一大堆（现实中就是这样）
+  const redStacks = splitRedStacks(redCount)
+  for (const c of redStacks) {
+    groups.push({ color: 'red', count: c })
+  }
+
+  return {
+    groups,
+    total
+  }
+}
+
 function newRound() {
   round.value++
-  target.value = pickRandom(targets)
   userInput.value = ''
   feedback.value = 'idle'
 
-  // 只有存在余数时，才需要 4 / 5 分组
-  remainderGroupSize.value =
-    target.value % 20 === 0 ? null : pickRandom([4, 5])
+  const { groups, total } = generateChips()
+  chipGroups.value = groups
+  correctValue.value = total
 }
-
-/**
- * 根据筹码个数计算堆叠
- * 规则：
- * - 优先使用 20 个一堆
- * - 剩余部分使用 4 或 5
- */
-const stacks = computed(() => {
-  const total = target.value
-  const result = []
-
-  // 20 个一堆
-  const full20 = Math.floor(total / 20)
-  for (let i = 0; i < full20; i++) {
-    result.push(20)
-  }
-
-  // 剩余部分
-  const rem = total % 20
-  if (rem > 0) {
-    const g = remainderGroupSize.value ?? 5
-    const full = Math.floor(rem / g)
-    for (let i = 0; i < full; i++) {
-      result.push(g)
-    }
-    const last = rem % g
-    if (last > 0) result.push(last)
-  }
-
-  return result
-})
 
 function onSubmit() {
   const val = parseInt(userInput.value, 10)
@@ -77,9 +147,7 @@ function onSubmit() {
     return
   }
 
-  const correctValue = target.value * CHIP_VALUE
-
-  if (val === correctValue) {
+  if (val === correctValue.value) {
     feedback.value = 'correct'
     setTimeout(newRound, 700)
   } else {
@@ -87,7 +155,7 @@ function onSubmit() {
   }
 }
 
-// 初始化第一题
+// 初始化
 newRound()
 </script>
 
@@ -100,13 +168,13 @@ newRound()
     <section class="board">
       <div class="stacks">
         <div
-          v-for="(cnt, idx) in stacks"
-          :key="`${round}-${idx}-${cnt}`"
+          v-for="(group, idx) in chipGroups"
+          :key="`${round}-${idx}`"
           class="stack"
         >
           <ChipStack
-            :color="color"
-            :count="cnt"
+            :color="group.color"
+            :count="group.count"
             :size="72"
             :spacing="10"
             :seed="`${round}-${idx}`"
@@ -117,13 +185,12 @@ newRound()
 
     <section class="answer">
       <label class="input-wrap">
-        请输入红色筹码代表的总数值（每个 = 5）：
+        请输入屏幕上筹码代表的总数值：
         <input
           v-model="userInput"
           type="number"
           inputmode="numeric"
-          pattern="[0-9]*"
-          placeholder="例如 175"
+          placeholder="例如 125"
           @keyup.enter="onSubmit"
           :class="feedback"
         />
@@ -153,7 +220,6 @@ newRound()
 
 .topbar {
   display: flex;
-  align-items: baseline;
   justify-content: space-between;
 }
 
@@ -164,7 +230,7 @@ newRound()
 .stacks {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 10px;
+  gap: 10px 14px;
   align-items: flex-end;
 }
 
@@ -175,7 +241,7 @@ newRound()
 }
 
 .answer {
-  margin-top: 8px;
+  margin-top: 10px;
   display: grid;
   gap: 10px;
 }

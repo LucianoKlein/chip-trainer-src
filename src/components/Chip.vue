@@ -13,6 +13,12 @@ import RedAng2 from '@/assets/cheques/red/ang2.svg?component'
 import RedAng3 from '@/assets/cheques/red/ang3.svg?component'
 import RedAng4 from '@/assets/cheques/red/ang4.svg?component'
 
+import GreenAng1 from '@/assets/cheques/green/ang1.svg?component'
+import GreenAng2 from '@/assets/cheques/green/ang2.svg?component'
+import GreenAng3 from '@/assets/cheques/green/ang3.svg?component'
+import GreenAng4 from '@/assets/cheques/green/ang4.svg?component'
+
+
 type Angle = 'ang1' | 'ang2' | 'ang3' | 'ang4'
 type Color = 'red' | 'white' | 'green' | 'black' // 你可扩展
 
@@ -29,7 +35,7 @@ const size = computed(() => props.size ?? 64)
 const mapByColor: Record<Color, Record<Angle, any>> = {
   white:   { ang1: WhiteAng1, ang2: WhiteAng2, ang3: WhiteAng3, ang4: WhiteAng4 },
   red:  { ang1: RedAng1, ang2: RedAng2, ang3: RedAng3, ang4: RedAng4 },
-  green: { ang1: RedAng1, ang2: RedAng2, ang3: RedAng3, ang4: RedAng4 },  // TODO
+  green: { ang1: GreenAng1, ang2: GreenAng2, ang3: GreenAng3, ang4: GreenAng4 },  // TODO
   black: { ang1: RedAng1, ang2: RedAng2, ang3: RedAng3, ang4: RedAng4 },  // TODO
 }
 
