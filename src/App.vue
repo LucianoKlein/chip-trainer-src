@@ -85,6 +85,24 @@ const correctValue = ref(0)
 const userInput = ref('')
 const feedback = ref('idle')
 
+// ===== 颜色选择（默认全选）=====
+const colorOptions = ref({
+  green: true,
+  red: true,
+  white: true,
+})
+
+// ===== 白色数量区间（仅白色选中时生效）=====
+const whiteRange = ref('1-20') // '1-20' | '20-60'
+
+
+function getEnabledColors() {
+  return Object.entries(colorOptions.value)
+    .filter(([, enabled]) => enabled)
+    .map(([color]) => color)
+}
+
+
 function splitGreenStacks(count) {
   const result = []
   let remaining = count
@@ -119,6 +137,31 @@ function splitGreenStacks(count) {
   return result
 }
 
+function splitWhiteStacks(count) {
+  const result = []
+  let remaining = count
+
+  // 1️⃣ 20 个一组
+  while (remaining >= 20) {
+    result.push(20)
+    remaining -= 20
+  }
+
+  // 2️⃣ 5 个一组
+  while (remaining >= 5) {
+    result.push(5)
+    remaining -= 5
+  }
+
+  // 3️⃣ 剩余 1~4
+  if (remaining > 0) {
+    result.push(remaining)
+  }
+
+  return result
+}
+
+
 
 function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
@@ -128,42 +171,64 @@ function pickRandom(arr) {
  * 生成一题（始终包含红 + 绿）
  */
  function generateChips() {
-  const total = randomTotalValue() // 比如 300～2000
+  // 1️⃣ 原始总值（5 的倍数）
+  let total = randomTotalValue()
 
-  // 1️⃣ 全部先当成红色
+  // 2️⃣ 决定白筹数量（可 >20）
+  let whiteCount = 0
+  if (Math.random() < 0.6) {
+    // 1 ~ 39：能出现 20 + 5 + 零头
+    whiteCount = Math.floor(Math.random() * 39) + 1
+    total -= whiteCount
+  }
+
+  // ⚠️ 兜底：避免 total 被减成非正数
+  if (total < 5) {
+    total += whiteCount
+    whiteCount = 0
+  }
+
+  // 3️⃣ 全部先当成红色
   let redCount = total / CHIP_TYPES.red.value
 
-  // 2️⃣ 随机把一部分红色换成绿色
-  // 例如：20%～40%
+  // 4️⃣ 随机把一部分红色换成绿色
   const greenRatio = 0.2 + Math.random() * 0.2
-  let greenCount = Math.floor((redCount * greenRatio) / 5) // 5 个红 = 1 个绿
+  let greenCount = Math.floor((redCount * greenRatio) / 5)
 
-  // 限制绿色数量，避免“满屏绿”
   greenCount = Math.min(greenCount, Math.floor(redCount / 5) - 1)
   if (greenCount < 1) greenCount = 1
 
-  // 3️⃣ 扣掉被换掉的红色
+  // 5️⃣ 扣掉被换掉的红色
   redCount -= greenCount * 5
 
   const groups = []
 
-  // 4️⃣ 绿色排版（20 / 4 / 2 / 3 规则）
+  // 6️⃣ 绿色
   const greenStacks = splitGreenStacks(greenCount)
   for (const c of greenStacks) {
     groups.push({ color: 'green', count: c })
   }
 
-  // 5️⃣ 红色一大堆（现实中就是这样）
+  // 7️⃣ 红色
   const redStacks = splitRedStacks(redCount)
   for (const c of redStacks) {
     groups.push({ color: 'red', count: c })
   }
 
+  // 8️⃣ 白色（20 / 5 / remainder）
+  if (whiteCount > 0) {
+    const whiteStacks = splitWhiteStacks(whiteCount)
+    for (const c of whiteStacks) {
+      groups.push({ color: 'white', count: c })
+    }
+  }
+
   return {
     groups,
-    total
+    total: total + whiteCount // ✅ 正确答案一定要加回白筹
   }
 }
+
 
 function newRound() {
   round.value++

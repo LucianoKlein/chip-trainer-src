@@ -3,10 +3,10 @@
 import { computed } from 'vue'
 
 // 示例：红色筹码四角度 SVG 组件（你按实际路径替换）
-import WhiteAng1 from '@/assets/chips/black100/ang1.svg?component'
-import WhiteAng2 from '@/assets/chips/black100/ang2.svg?component'
-import WhiteAng3 from '@/assets/chips/black100/ang3.svg?component'
-import WhiteAng4 from '@/assets/chips/black100/ang4.svg?component'
+import WhiteAng1 from '@/assets/cheques/white/ang1.svg?component'
+import WhiteAng2 from '@/assets/cheques/white/ang2.svg?component'
+import WhiteAng3 from '@/assets/cheques/white/ang3.svg?component'
+import WhiteAng4 from '@/assets/cheques/white/ang4.svg?component'
 
 import RedAng1 from '@/assets/cheques/red/ang1.svg?component'
 import RedAng2 from '@/assets/cheques/red/ang2.svg?component'
