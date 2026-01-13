@@ -18,7 +18,7 @@ const TOTAL_VALUES = [
 ]
 function randomTotalValue() {
   const min = 10
-  const max = 1000
+  const max = 250
   const step = 5
   const n = Math.floor(Math.random() * ((max - min) / step + 1))
   return min + n * step
