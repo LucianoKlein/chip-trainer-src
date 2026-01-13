@@ -1,81 +1,216 @@
-<!-- src/App.vue -->
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import ChipStack from '@/components/ChipStack.vue'
 
-// 题库：10..100（步长 5）
-const targets = Array.from({ length: 150 }, (_, i) => i + 1)
-
-const round = ref(0)
-const target = ref(10)
-const userInput = ref('')
-const feedback = ref('idle') // 'idle' | 'correct' | 'wrong'
-const color = ref('red')
-
-// 余数部分的分组（4 或 5），在每轮初始化时决定
-const remainderGroupSize = ref(null) // 4 | 5 | null
-
-function pickRandom(arr) {
-  return arr[Math.floor(Math.random() * arr.length)]
+/**
+ * 筹码定义
+ */
+const CHIP_TYPES = {
+  red: { value: 5 },
+  green: { value: 25 },
+  white: { value: 1 },
 }
 
-function newRound() {
-  round.value++
-  target.value = pickRandom(targets)
-  userInput.value = ''
-  feedback.value = 'idle'
-
-  const r = target.value % 20
-  remainderGroupSize.value = r > 0 ? pickRandom([4, 5]) : null
+/**
+ * 随机总值（5 的倍数）
+ */
+function randomTotalValue() {
+  const min = 10
+  const max = 250
+  const step = 5
+  const n = Math.floor(Math.random() * ((max - min) / step + 1))
+  return min + n * step
 }
 
-// 计算要展示的各个堆叠的“层数数组”，例如 [20, 20, 5, 5, 3]
-const stacks = computed(() => {
-  const total = target.value
+/**
+ * 红色分组
+ */
+function splitRedStacks(count) {
   const result = []
+  let remaining = count
 
-  if (total >= 20) {
-    const full20 = Math.floor(total / 20)
-    for (let i = 0; i < full20; i++) result.push(20)
+  while (remaining >= 20) {
+    result.push(20)
+    remaining -= 20
   }
 
-  const rem = target.value % 20
-  if (rem > 0) {
-    const g = remainderGroupSize.value ?? 5
-    const full = Math.floor(rem / g)
-    for (let i = 0; i < full; i++) result.push(g)
+  while (remaining >= 4) {
+    if (remaining === 7) {
+      Math.random() < 0.5
+        ? result.push(4, 3)
+        : result.push(5, 2)
+      remaining = 0
+      break
+    }
 
-    const last = rem % g
-    if (last > 0) result.push(last)
+    const choice = Math.random() < 0.5 ? 4 : 5
+    if (remaining >= choice) {
+      result.push(choice)
+      remaining -= choice
+    } else {
+      const alt = choice === 4 ? 5 : 4
+      if (remaining >= alt) {
+        result.push(alt)
+        remaining -= alt
+      } else break
+    }
   }
 
-  // total < 20 的情况：直接用 4 或 5 一叠（最后显示余数）
-  if (total < 20) {
-    const g = pickRandom([4, 5])
-    const full = Math.floor(total / g)
-    for (let i = 0; i < full; i++) result.push(g)
-    const last = total % g
-    if (last > 0) result.push(last)
+  if (remaining > 0) result.push(remaining)
+  return result
+}
+
+/**
+ * 绿色分组
+ */
+function splitGreenStacks(count) {
+  const result = []
+  let remaining = count
+
+  while (remaining >= 20) {
+    result.push(20)
+    remaining -= 20
+  }
+
+  if (remaining > 0) {
+    if (remaining === 6) result.push(4, 2)
+    else if (remaining === 7) result.push(4, 3)
+    else {
+      while (remaining >= 4) {
+        result.push(4)
+        remaining -= 4
+      }
+      if (remaining > 0) result.push(remaining)
+    }
   }
 
   return result
-})
+}
 
-function onSubmit() {
-  const val = parseInt(userInput.value, 10)
-  if (Number.isNaN(val)) {
-    feedback.value = 'wrong'
-    return
+/**
+ * 白色分组（20 / 5 / remainder）
+ */
+function splitWhiteStacks(count) {
+  const result = []
+  let remaining = count
+
+  while (remaining >= 20) {
+    result.push(20)
+    remaining -= 20
   }
-  if (val === target.value * 5) {
-    feedback.value = 'correct'
-    setTimeout(newRound, 700)
-  } else {
-    feedback.value = 'wrong'
+
+  while (remaining >= 5) {
+    result.push(5)
+    remaining -= 5
+  }
+
+  if (remaining > 0) result.push(remaining)
+  return result
+}
+
+/* ================= 状态 ================= */
+
+const round = ref(0)
+const chipGroups = ref([])
+const correctValue = ref(0)
+
+const userInput = ref('')
+const feedback = ref('idle')
+
+// Element Plus 颜色选择（默认全选）
+const enabledColors = ref(['green', 'red', 'white'])
+
+// 白色数量区间
+const whiteRange = ref('1-20')
+
+function getEnabledColors() {
+  return enabledColors.value
+}
+
+/* ================= 出题逻辑 ================= */
+
+function generateChips() {
+  const colors = enabledColors.value
+  const groups = []
+
+  let total = 0
+
+  // ===== 白色（必出现）=====
+  let whiteCount = 0
+  if (colors.includes('white')) {
+    whiteCount =
+      whiteRange.value === '1-20'
+        ? Math.floor(Math.random() * 20) + 1
+        : Math.floor(Math.random() * 41) + 20
+
+    splitWhiteStacks(whiteCount).forEach(c => {
+      groups.push({ color: 'white', count: c })
+    })
+
+    total += whiteCount * CHIP_TYPES.white.value
+  }
+
+  // ===== 红 / 绿（至少 1 组）=====
+  let redCount = 0
+  let greenCount = 0
+
+  if (colors.includes('red') || colors.includes('green')) {
+    // 至少 5 个红起步
+    redCount = Math.floor(Math.random() * 20 + 5)
+
+    if (colors.includes('green')) {
+      // 至少 1 个绿
+      greenCount = Math.max(1, Math.floor(redCount / 5))
+      redCount -= greenCount * 5
+    }
+
+    if (colors.includes('green') && greenCount > 0) {
+      splitGreenStacks(greenCount).forEach(c => {
+        groups.push({ color: 'green', count: c })
+      })
+      total += greenCount * CHIP_TYPES.green.value
+    }
+
+    if (colors.includes('red') && redCount > 0) {
+      splitRedStacks(redCount).forEach(c => {
+        groups.push({ color: 'red', count: c })
+      })
+      total += redCount * CHIP_TYPES.red.value
+    }
+  }
+
+  const order = {
+    green: 0,
+    red: 1,
+    white: 2,
+  }
+
+  groups.sort((a, b) => order[a.color] - order[b.color])
+
+  return {
+    groups,
+    total,
   }
 }
 
-// 初始化第一题
+
+/* ================= 交互 ================= */
+
+function newRound() {
+  round.value++
+  userInput.value = ''
+  feedback.value = 'idle'
+  const { groups, total } = generateChips()
+  chipGroups.value = groups
+  correctValue.value = total
+}
+
+function onSubmit() {
+  const val = Number(userInput.value)
+  feedback.value = val === correctValue.value ? 'correct' : 'wrong'
+  if (feedback.value === 'correct') setTimeout(newRound, 700)
+}
+
 newRound()
 </script>
 
@@ -83,101 +218,122 @@ newRound()
   <main class="app">
     <header class="topbar">
       <h1>筹码反应训练</h1>
-      <div class="meta">
-      </div>
     </header>
 
+    <!-- 配置区 -->
+    <el-form label-position="top" class="filters">
+      <el-form-item label="筹码颜色">
+        <el-checkbox-group v-model="enabledColors">
+          <el-space size="large">
+            <el-checkbox label="green">绿色</el-checkbox>
+            <el-checkbox label="red">红色</el-checkbox>
+            <el-checkbox label="white">白色</el-checkbox>
+          </el-space>
+        </el-checkbox-group>
+      </el-form-item>
+
+      <el-form-item v-if="enabledColors.includes('white')" label="白色筹码数量">
+        <el-radio-group v-model="whiteRange">
+          <el-space size="large">
+            <el-radio label="1-20">1–20 个白色</el-radio>
+            <el-radio label="20-60">20–60 个白色</el-radio>
+          </el-space>
+        </el-radio-group>
+      </el-form-item>
+    </el-form>
+
+    <!-- 筹码展示 -->
     <section class="board">
       <div class="stacks">
-        <div
-          v-for="(cnt, idx) in stacks"
-          :key="`${round}-${idx}-${cnt}`"
-          class="stack"
-        >
+        <div v-for="(group, idx) in chipGroups" :key="`${round}-${idx}`" class="stack">
           <ChipStack
-            :color="color"
-            :count="cnt"
+            :color="group.color"
+            :count="group.count"
             :size="72"
             :spacing="10"
-            :seed="`${round}-${idx}`"
           />
         </div>
       </div>
     </section>
 
+    <!-- 答题 -->
     <section class="answer">
-      <label class="input-wrap">
-        请输入屏幕上筹码的总数：
-        <input
-          v-model="userInput"
-          type="number"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          placeholder="例如 35"
-          @keyup.enter="onSubmit"
-          :class="feedback"
-        />
-      </label>
+      <input
+        v-model="userInput"
+        type="number"
+        placeholder="请输入总数值"
+        @keyup.enter="onSubmit"
+        :class="feedback"
+      />
 
       <div class="actions">
         <button @click="onSubmit">提交</button>
-        <button class="next" @click="newRound">换一题</button>
+        <button @click="newRound">换一题</button>
       </div>
 
-      <p v-if="feedback==='correct'" class="ok">正确！已为你生成下一题…</p>
-      <p v-else-if="feedback==='wrong'" class="err">不对哦，再看看筹码总数～</p>
+      <p v-if="feedback === 'correct'" class="ok">正确！</p>
+      <p v-else-if="feedback === 'wrong'" class="err">不对哦～</p>
     </section>
   </main>
 </template>
 
 <style scoped>
-.app { max-width: 820px; margin: 0 auto; padding: 16px; }
-.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.meta { font-size: 12px; color: #666; display: flex; gap: 12px; }
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
 
-.board { margin: 16px 0 8px; }
+.board {
+  margin: 16px 0;
+}
+
 .stacks {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px 9px;
+  gap: 12px;
   align-items: flex-end;
 }
+
 .stack {
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-.stack .label { margin-top: 6px; font-size: 12px; color: #888; }
 
-.answer { margin-top: 8px; display: grid; gap: 10px; }
-.input-wrap { display: grid; gap: 6px; }
+.answer {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
 input {
-  padding: 10px 12px;
+  padding: 10px;
   font-size: 16px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  width: 180px;
 }
-input.correct { border-color: #16a34a; }
-input.wrong   { border-color: #dc2626; animation: shake 0.18s linear 2; }
 
-.actions { display: flex; gap: 8px; }
-button {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  background: #fff;
+input.correct {
+  border: 1px solid #16a34a;
 }
-button.next { background: #f7f7f7; }
 
-.ok  { color: #16a34a; }
-.err { color: #dc2626; }
+input.wrong {
+  border: 1px solid #dc2626;
+}
 
-@keyframes shake {
-  0% { transform: translateX(0) }
-  25% { transform: translateX(-2px) }
-  50% { transform: translateX(2px) }
-  75% { transform: translateX(-2px) }
-  100% { transform: translateX(0) }
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ok {
+  color: #16a34a;
+}
+
+.err {
+  color: #dc2626;
+}
+
+.filters {
+  margin-bottom: 12px;
 }
 </style>
