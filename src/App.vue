@@ -6,6 +6,8 @@ import { useCashGame } from '@/game/useCashGame'
 import { useTournamentGame } from '@/game/useTournamentGame'
 import AnswerPanel from '@/components/AnswerPanel.vue'
 import ChipBoard from '@/components/ChipBoard.vue'
+import AnswerActions from '@/components/AnswerActions.vue'
+import TournamentAnswerInput from "@/components/TournamentAnswerInput.vue"
 interface GameEngine {
   generate(): {
     groups: { color: string; count: number }[]
@@ -92,15 +94,42 @@ newRound()
     />
     <ChipBoard :groups="chipGroups" />
     <!-- 答题 -->
-    <AnswerPanel
-      v-model="userInput"
-      :feedback="feedback"
-      :correctValue="correctValue"
-      :showAnswer="showAnswer"
-      @submit="onSubmit"
-      @next="newRound"
-      @toggleAnswer="toggleShowAnswer"
-    />
+    <section v-if="gameType === 'cash'" class="answer">
+  <!-- 原有 cash 输入 -->
+  <input
+    v-model="userInput"
+    type="number"
+    placeholder="请输入总数值"
+    @keyup.enter="onSubmit"
+    :class="feedback"
+  />
+
+  <AnswerActions
+    :feedback="feedback"
+    :showAnswer="showAnswer"
+    :correctValue="correctValue"
+    @submit="onSubmit"
+    @next="newRound"
+    @toggleAnswer="toggleShowAnswer"
+  />
+</section>
+
+<section v-if="gameType === 'tournament'" class="answer">
+  <TournamentAnswerInput
+    v-model="userInput"
+    :length="7"
+  />
+
+  <AnswerActions
+    :feedback="feedback"
+    :showAnswer="showAnswer"
+    :correctValue="correctValue"
+    @submit="onSubmit"
+    @next="newRound"
+    @toggleAnswer="toggleShowAnswer"
+  />
+</section>
+
 
   </main>
 </template>
