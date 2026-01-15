@@ -4,10 +4,10 @@
  * 筹码面额定义
  */
 export const CHIP_TYPES = {
+    white: { value: 1 },
     red: { value: 5 },
     green: { value: 25 },
-    white: { value: 1 },
-    black: { value: 100 },
+    black: { value: 100 }
   }
   
   /**
@@ -80,4 +80,35 @@ export const CHIP_TYPES = {
     if (remaining > 0) result.push(remaining)
     return result
   }
+
+  /**
+ * 锦标赛筹码分组
+ * 规则：
+ * - >= 20：20 个一组
+ * - < 20：用 smallGroupSize 分组
+ */
+export function splitTournamentStacks(
+    count: number,
+    smallGroupSize: number
+  ) {
+    const result: number[] = []
+    let remaining = count
+  
+    while (remaining >= 20) {
+      result.push(20)
+      remaining -= 20
+    }
+  
+    while (remaining >= smallGroupSize) {
+      result.push(smallGroupSize)
+      remaining -= smallGroupSize
+    }
+  
+    if (remaining > 0) {
+      result.push(remaining)
+    }
+  
+    return result
+  }
+  
   

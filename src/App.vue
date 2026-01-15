@@ -20,10 +20,20 @@ const chipGroups = ref([])
 const correctValue = ref(0)
 const userInput = ref('')
 const feedback = ref('idle')
+const tournamentColors = ref<string[]>([
+  'black100',
+  'purple500',
+  'yellow1k',
+  'red5k',
+  'green25k',
+])
+
+const blackRange = ref<'1-19' | '20-60'>('1-19')
+
 
 // Element Plus 颜色选择（默认全选）
-const enabledColors = ref(['green', 'red', 'white'])
-const gameType = ref(['cash', 'tournament'])
+const enabledColors = ref(['green', 'red', 'white','black'])
+const gameType = ref<'cash' | 'tournament'>('cash')
 
 // 白色数量区间
 const whiteRange = ref('1-20')
@@ -52,7 +62,10 @@ function toggleShowAnswer() {
 
 const gameEngine = computed(() => {
   if (gameType.value === 'tournament') {
-    return useTournamentGame()
+    return useTournamentGame({
+      colors: tournamentColors.value,
+      blackRange: blackRange.value,
+    })
   }
 
   return useCashGame({
@@ -60,6 +73,7 @@ const gameEngine = computed(() => {
     whiteRange: whiteRange.value,
   })
 })
+
 
 newRound()
 </script>
@@ -73,6 +87,8 @@ newRound()
       v-model:gameType="gameType"
       v-model:enabledColors="enabledColors"
       v-model:whiteRange="whiteRange"
+      v-model:tournamentColors="tournamentColors"
+      v-model:blackRange="blackRange"
     />
     <ChipBoard :groups="chipGroups" />
     <!-- 答题 -->
