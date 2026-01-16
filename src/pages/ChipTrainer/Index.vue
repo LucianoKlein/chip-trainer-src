@@ -1,24 +1,45 @@
 <script setup lang="ts">
+  import TournamentAnswerInput from './components/TournamentAnswerInput.vue'
+  import GameConfigPanel from './components/GameConfigPanel.vue'
+  import ChipBoard from './components/ChipBoard.vue'
+  import AnswerActions from './components/AnswerActions.vue'
   import { ref, computed, watch } from 'vue'
-  import GameConfigPanel from '@/components/GameConfigPanel.vue'
-  import { useCashGame } from '@/game/useCashGame'
-  import { useTournamentGame } from '@/game/useTournamentGame'
-  import ChipBoard from '@/components/ChipBoard.vue'
-  import AnswerActions from '@/components/AnswerActions.vue'
-  import TournamentAnswerInput from '@/components/TournamentAnswerInput.vue'
-
-  /* ================= 状态 ================= */
+  import { useTournamentGame } from './customHooks/useTournamentGame'
+  import { CashColor, useCashGame } from './customHooks/useCashGame'
+  import { TournamentColor } from './utils/tournamentConfig'
+  import useChipTrainingI18n from '../../i18n/customHook/chipTraining/useChipTraining'
+  import useUISystem from '@/i18n/customHook/UI/useUISystem'
+  const {
+    pageTitle,
+    chipConfig,
+    chipLimitConfig,
+    cashGame,
+    tournamentGame,
+    white,
+    red,
+    green,
+    black,
+    purple,
+    inputPlaceholder,
+    gold,
+  } = useChipTrainingI18n()
+  const { save, cancel } = useUISystem()
   const tournamentInputRef = ref<InstanceType<typeof TournamentAnswerInput> | null>(null)
-
   const round = ref(0)
   const chipGroups = ref([])
   const correctValue = ref(0)
   const userInput = ref('')
   const feedback = ref('idle')
 
-  const tournamentColors = ref<string[]>(['black100', 'purple500', 'yellow1k', 'red5k', 'green25k'])
+  const tournamentColors = ref<TournamentColor[]>([
+    'black100',
+    'purple500',
+    'yellow1k',
+    'red5k',
+    'green25k',
+  ])
 
-  const enabledColors = ref(['green', 'red', 'white', 'black'])
+  const enabledColors = ref<CashColor[]>(['green', 'red', 'white', 'black'])
   const gameType = ref<'cash' | 'tournament'>('cash')
 
   const showAnswer = ref(false)
@@ -62,7 +83,7 @@
     feedback.value = 'idle'
 
     const { groups, total } = gameEngine.value.generate()
-    chipGroups.value = groups
+    chipGroups.value = groups as any
     correctValue.value = total
     showAnswer.value = false
   }
@@ -140,57 +161,58 @@
 
 <template>
   <!-- ========== 配置弹窗 ========== -->
-  <el-dialog v-model="showChipConfig" title="筹码最大数量配置" width="520px">
-    <h3 class="config-title">现金桌</h3>
+  <el-dialog v-model="showChipConfig" :title="chipConfig" width="520px">
+    <h3 class="config-title">{{ cashGame }}</h3>
 
     <el-form label-width="120px">
-      <el-form-item label="白色 (1)">
+      <el-form-item :label="`${white} (1)`">
         <el-input-number v-model="cashChipLimits.white1" :min="0" :max="1000" />
       </el-form-item>
-      <el-form-item label="红色 (5)">
+      <el-form-item :label="`${red} (5)`">
         <el-input-number v-model="cashChipLimits.red5" :min="0" :max="1000" />
       </el-form-item>
-      <el-form-item label="绿色 (25)">
+      <el-form-item :label="`${green} (25)`">
         <el-input-number v-model="cashChipLimits.green25" :min="0" :max="1000" />
       </el-form-item>
-      <el-form-item label="黑色 (100)">
+      <el-form-item :label="`${black} (100)`">
         <el-input-number v-model="cashChipLimits.black100" :min="0" :max="1000" />
       </el-form-item>
     </el-form>
 
     <el-divider />
 
-    <h3 class="config-title">锦标赛</h3>
-
+    <h3 class="config-title">{{ tournamentGame }}</h3>
     <el-form label-width="120px">
-      <el-form-item label="绿色 (25)">
+      <el-form-item :label="`${green} (25)`">
         <el-input-number v-model="tournamentChipLimits.green25" :min="0" :max="1000" />
       </el-form-item>
-      <el-form-item label="黑色 (100)"
+      <el-form-item :label="`${black} (100)`"
         ><el-input-number v-model="tournamentChipLimits.black100" :min="0" :max="1000" />
       </el-form-item>
-      <el-form-item label="紫色 (500)">
+      <el-form-item :label="`${purple} (500)`">
         <el-input-number v-model="tournamentChipLimits.purple500" :min="0" :max="1000" />
       </el-form-item>
-      <el-form-item label="金色 (1000)">
+      <el-form-item :label="`${gold} (1000)`">
         <el-input-number v-model="tournamentChipLimits.gold1000" :min="0" :max="1000" />
       </el-form-item>
-      <el-form-item label="红色 (5000)">
+      <el-form-item :label="`${red} (5000)`">
         <el-input-number v-model="tournamentChipLimits.red5000" :min="0" :max="1000" />
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <el-button @click="showChipConfig = false">取消</el-button>
-      <el-button type="primary" @click="saveChipConfig">保存</el-button>
+      <el-button @click="showChipConfig = false">{{ cancel }}</el-button>
+      <el-button type="primary" @click="saveChipConfig">{{ save }}</el-button>
     </template>
   </el-dialog>
 
   <!-- ========== 主体 ========== -->
   <main class="app">
     <header class="topbar">
-      <h1>筹码反应训练</h1>
-      <el-button type="primary" @click="showChipConfig = true"> 筹码配置 </el-button>
+      <h1>{{ pageTitle }}</h1>
+      <el-button type="primary" @click="showChipConfig = true">
+        {{ chipLimitConfig }}
+      </el-button>
     </header>
 
     <GameConfigPanel
@@ -205,7 +227,7 @@
     <section v-if="gameType === 'cash'" class="answer">
       <el-input
         v-model="userInput"
-        placeholder="请输入总数值"
+        :placeholder="inputPlaceholder"
         size="large"
         input-style="text-align: center; font-size: 20px;"
         @keyup.enter="onSubmit"
@@ -213,7 +235,7 @@
       />
 
       <AnswerActions
-        :feedback="feedback"
+        :feedback="feedback as any"
         :showAnswer="showAnswer"
         :correctValue="correctValue"
         @submit="onSubmit"
@@ -226,7 +248,7 @@
       <TournamentAnswerInput ref="tournamentInputRef" v-model="userInput" :length="7" />
 
       <AnswerActions
-        :feedback="feedback"
+        :feedback="feedback as any"
         :showAnswer="showAnswer"
         :correctValue="correctValue"
         @submit="onSubmit"
