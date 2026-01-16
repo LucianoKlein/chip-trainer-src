@@ -1,9 +1,4 @@
-import {
-  CHIP_TYPES,
-  splitRedStacks,
-  splitGreenStacks,
-  splitWhiteStacks,
-} from './chipUtils'
+import { CHIP_TYPES, splitRedStacks, splitGreenStacks, splitWhiteStacks } from './chipUtils'
 
 /**
  * 现金桌颜色类型
@@ -19,7 +14,6 @@ export interface CashChipLimits {
   green25: number
   black100: number
 }
-
 /**
  * Cash Game Config
  */
@@ -104,9 +98,7 @@ export function useCashGame(config: CashGameConfig) {
     /* ========== 排序（现金桌：大 → 小）========== */
     const ORDER: CashColor[] = ['black', 'green', 'red', 'white']
 
-    groups.sort(
-      (a, b) => ORDER.indexOf(a.color) - ORDER.indexOf(b.color)
-    )
+    groups.sort((a, b) => ORDER.indexOf(a.color) - ORDER.indexOf(b.color))
 
     return { groups, total }
   }
