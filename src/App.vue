@@ -196,10 +196,11 @@ newRound()
 
     <!-- 答题 -->
     <section v-if="gameType === 'cash'" class="answer">
-      <input
+      <el-input
         v-model="userInput"
-        type="number"
         placeholder="请输入总数值"
+        size="large"
+        input-style="text-align: center; font-size: 20px;"
         @keyup.enter="onSubmit"
         :class="feedback"
       />
@@ -265,4 +266,18 @@ input.correct {
 input.wrong {
   border: 1px solid #dc2626;
 }
+
+
+.el-input {
+  max-width: 280px; /* 不要拉满，很重要 */
+}
+
+.el-input.correct .el-input__wrapper {
+  border-color: #16a34a;
+}
+
+.el-input.wrong .el-input__wrapper {
+  border-color: #dc2626;
+}
+
 </style>
