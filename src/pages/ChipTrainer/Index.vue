@@ -32,14 +32,29 @@
   const feedback = ref('idle')
 
   const tournamentColors = ref<TournamentColor[]>([
+    'green25k',
     'black100',
     'purple500',
     'yellow1k',
     'red5k',
-    'green25k',
+
+    // ===== 新增（已 import）=====
+    'grey5m',
+    'orange1m',
+    'blue100k',
   ])
 
-  const enabledColors = ref<CashColor[]>(['green', 'red', 'white', 'black'])
+  const enabledColors = ref<CashColor[]>([
+    'white',
+    'red',
+    'green',
+    'black',
+
+    // 新增（你已经 import 过）
+    'pink',
+    'purple',
+    'brown',
+  ])
   const gameType = ref<'cash' | 'tournament'>('cash')
 
   const showAnswer = ref(false)
@@ -51,14 +66,21 @@
     red5: 100,
     green25: 100,
     black100: 100,
+    pink: 100,
+    purple: 100,
+    brown: 100,
   })
 
   const tournamentChipLimits = ref({
-    green25: 100,
+    green25k: 100,
     black100: 100,
-    purple500: 100,
-    gold1000: 100,
-    red5000: 100,
+
+    purple500: 1,
+    yellow1k: 1,
+    red5k: 1,
+    blue100k: 1,
+    orange1m: 1,
+    grey5m: 1,
   })
 
   function saveChipConfig() {
@@ -232,20 +254,31 @@
             <span class="config-label">{{ white }} (1)</span>
             <el-input-number v-model="cashChipLimits.white1" :min="0" :max="1000" />
           </div>
-
           <div class="config-item">
             <span class="config-label">{{ red }} (5)</span>
             <el-input-number v-model="cashChipLimits.red5" :min="0" :max="1000" />
           </div>
-
           <div class="config-item">
             <span class="config-label">{{ green }} (25)</span>
             <el-input-number v-model="cashChipLimits.green25" :min="0" :max="1000" />
           </div>
-
           <div class="config-item">
             <span class="config-label">{{ black }} (100)</span>
             <el-input-number v-model="cashChipLimits.black100" :min="0" :max="1000" />
+          </div>
+          <div class="config-item">
+            <span class="config-label">Pink</span>
+            <el-input-number v-model="cashChipLimits.pink" :min="0" :max="1000" />
+          </div>
+
+          <div class="config-item">
+            <span class="config-label">Purple</span>
+            <el-input-number v-model="cashChipLimits.purple" :min="0" :max="1000" />
+          </div>
+
+          <div class="config-item">
+            <span class="config-label">Brown</span>
+            <el-input-number v-model="cashChipLimits.brown" :min="0" :max="1000" />
           </div>
         </div>
       </section>
@@ -253,13 +286,15 @@
       <el-divider />
 
       <!-- ========== 锦标赛配置 ========== -->
+      <!-- ========== 锦标赛配置 ========== -->
       <section class="config-section">
         <h3 class="config-title">{{ tournamentGame }}</h3>
 
         <div class="config-grid">
+          <!-- 可多枚的低面额筹码 -->
           <div class="config-item">
-            <span class="config-label">{{ green }} (25)</span>
-            <el-input-number v-model="tournamentChipLimits.green25" :min="0" :max="1000" />
+            <span class="config-label">{{ green }} (25k)</span>
+            <el-input-number v-model="tournamentChipLimits.green25k" :min="0" :max="1000" />
           </div>
 
           <div class="config-item">
@@ -267,19 +302,36 @@
             <el-input-number v-model="tournamentChipLimits.black100" :min="0" :max="1000" />
           </div>
 
+          <!-- ===== 稀有筹码：只能 0 / 1 ===== -->
+
           <div class="config-item">
             <span class="config-label">{{ purple }} (500)</span>
-            <el-input-number v-model="tournamentChipLimits.purple500" :min="0" :max="1000" />
+            <el-input-number v-model="tournamentChipLimits.purple500" :min="0" :max="1" />
           </div>
 
           <div class="config-item">
-            <span class="config-label">{{ gold }} (1000)</span>
-            <el-input-number v-model="tournamentChipLimits.gold1000" :min="0" :max="1000" />
+            <span class="config-label">{{ gold }} (1k)</span>
+            <el-input-number v-model="tournamentChipLimits.yellow1k" :min="0" :max="1" />
           </div>
 
           <div class="config-item">
-            <span class="config-label">{{ red }} (5000)</span>
-            <el-input-number v-model="tournamentChipLimits.red5000" :min="0" :max="1000" />
+            <span class="config-label">{{ red }} (5k)</span>
+            <el-input-number v-model="tournamentChipLimits.red5k" :min="0" :max="1" />
+          </div>
+
+          <div class="config-item">
+            <span class="config-label">Blue (100k)</span>
+            <el-input-number v-model="tournamentChipLimits.blue100k" :min="0" :max="1" />
+          </div>
+
+          <div class="config-item">
+            <span class="config-label">Orange (1M)</span>
+            <el-input-number v-model="tournamentChipLimits.orange1m" :min="0" :max="1" />
+          </div>
+
+          <div class="config-item">
+            <span class="config-label">Grey (5M)</span>
+            <el-input-number v-model="tournamentChipLimits.grey5m" :min="0" :max="1" />
           </div>
         </div>
       </section>
