@@ -2,6 +2,7 @@
 import { getAuth } from 'firebase/auth'
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { getFirestore } from 'firebase/firestore'
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 // 需要用 Firestore / Auth 再分别按需引入：
@@ -16,8 +17,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-export const app = initializeApp(firebaseConfig)
+export const app = initializeApp(firebaseConfig);
 
 // 用到哪个导出哪个：
 // export const db = getFirestore(app)
-export const auth = getAuth(app)
+export const auth = getAuth(app);
+export const db = getFirestore(app);
