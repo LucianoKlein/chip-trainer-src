@@ -31,7 +31,13 @@
     <div class="config-left">
       <span class="config-label">玩家数量</span>
 
-      <el-select v-model="playerCount" size="small" style="width: 120px" @change="onPlayerChange">
+      <el-select
+        :teleported="false"
+        v-model="playerCount"
+        size="small"
+        style="width: 120px"
+        @change="onPlayerChange"
+      >
         <el-option v-for="n in 7" :key="n + 1" :label="`${n + 1} 人`" :value="n + 1" />
       </el-select>
     </div>

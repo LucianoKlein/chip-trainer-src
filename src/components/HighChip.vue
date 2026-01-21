@@ -21,7 +21,7 @@
     font-size: 12px;
     font-weight: 600;
     letter-spacing: 0.5px;
-
+    z-index: 1000000;
     color: #ffffff;
     background: #d32f2f; /* 德州常见深红 */
 
