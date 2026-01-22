@@ -3,8 +3,7 @@ import { TOURNAMENT_CHIPS, TournamentColor } from '../utils/tournamentConfig'
 
 /**
  * 锦标赛筹码上限配置
- * - 0 表示不生成该筹码
- * - UI 已限制最大 <= 1000，这里不重复校验
+ * ⚠️ key 保持与你 index.vue 完全一致（不改）
  */
 export interface TournamentChipLimits {
   green25: number
@@ -12,6 +11,11 @@ export interface TournamentChipLimits {
   purple500: number
   gold1000: number
   red5000: number
+
+  // ===== 新增（你已经在 index.vue 里用到的）=====
+  grey5m: number
+  orange1m: number
+  blue100k: number
 }
 
 /**
@@ -24,7 +28,7 @@ export interface TournamentGameConfig {
 
 export function useTournamentGame(config: TournamentGameConfig) {
   function randomCount(max: number) {
-    if (max <= 0) return 0
+    if (!Number.isFinite(max) || max <= 0) return 0
     return Math.floor(Math.random() * (max + 1))
   }
 
@@ -32,44 +36,75 @@ export function useTournamentGame(config: TournamentGameConfig) {
     const groups: { color: TournamentColor; count: number }[] = []
     let total = 0
 
-    const TOURNAMENT_ORDER: TournamentColor[] = [
-      'green25k',
+    // 兜底：配置不存在直接返回
+    if (!config || !Array.isArray(config.colors) || !config.limits) {
+      return { groups, total: 0 }
+    }
+
+    // 展示顺序：大面额 → 小面额
+    const ORDER: TournamentColor[] = [
+      'grey5m',
+      'orange1m',
+      'blue100k',
       'red5k',
       'yellow1k',
       'purple500',
       'black100',
+      'green25k',
     ]
 
-    for (const color of TOURNAMENT_ORDER) {
+    for (const color of ORDER) {
+      // 未启用的颜色直接跳过
       if (!config.colors.includes(color)) continue
 
       const def = TOURNAMENT_CHIPS[color]
+      if (!def || !Number.isFinite(def.value)) continue
 
-      // 把 TournamentColor 映射到 limits 的 key
-      const limitKey =
-        color === 'green25k'
-          ? 'green25'
-          : color === 'black100'
-            ? 'black100'
-            : color === 'purple500'
-              ? 'purple500'
-              : color === 'yellow1k'
-                ? 'gold1000'
-                : 'red5000'
+      const max = config.limits[color]
+      if (!Number.isFinite(max) || max <= 0) continue
 
-      const max = config.limits[limitKey]
-      const count = randomCount(max)
+      // === 关键：生成数量（安全） ===
+      let count = 0
 
-      // 0：不生成
-      if (count <= 0) continue
+      // 紫色及以上：最多 1 枚
+      if (
+        color === 'purple500' ||
+        color === 'yellow1k' ||
+        color === 'red5k' ||
+        color === 'blue100k' ||
+        color === 'orange1m' ||
+        color === 'grey5m'
+      ) {
+        count = Math.random() < 0.5 ? 1 : 0
+      } else {
+        count = Math.floor(Math.random() * (max + 1))
+      }
 
-      const stacks = splitTournamentStacks(count, def.smallGroup)
+      if (!Number.isFinite(count) || count <= 0) continue
 
-      stacks.forEach((c) => {
+      // === 拆堆（再兜一层） ===
+      let stacks: number[] = []
+      try {
+        stacks = splitTournamentStacks(count, def.smallGroup)
+      } catch {
+        stacks = [count]
+      }
+
+      for (const c of stacks) {
+        if (!Number.isFinite(c) || c <= 0) continue
         groups.push({ color, count: c })
-      })
+      }
 
-      total += count * def.value
+      // === total 累加（绝对不 NaN） ===
+      const add = count * def.value
+      if (Number.isFinite(add)) {
+        total += add
+      }
+    }
+
+    // 最终兜底：保证 UI 永远不是 NaN
+    if (!Number.isFinite(total)) {
+      total = 0
     }
 
     return { groups, total }

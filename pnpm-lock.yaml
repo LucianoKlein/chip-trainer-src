@@ -11,6 +11,12 @@ importers:
       '@element-plus/icons-vue':
         specifier: ^2.3.2
         version: 2.3.2(vue@3.5.26(typescript@5.9.3))
+      '@type':
+        specifier: link:pokersolver/@type
+        version: link:pokersolver/@type
+      '@types':
+        specifier: link:pokersolver/@types
+        version: link:pokersolver/@types
       element-plus:
         specifier: ^2.13.1
         version: 2.13.1(vue@3.5.26(typescript@5.9.3))
@@ -20,6 +26,9 @@ importers:
       pinia:
         specifier: ^3.0.3
         version: 3.0.4(typescript@5.9.3)(vue@3.5.26(typescript@5.9.3))
+      pokersolver:
+        specifier: ^2.1.4
+        version: 2.1.4
       vue:
         specifier: ^3.5.22
         version: 3.5.26(typescript@5.9.3)
@@ -1755,6 +1764,10 @@ packages:
     peerDependenciesMeta:
       typescript:
         optional: true
+
+  pokersolver@2.1.4:
+    resolution: {integrity: sha512-vmgZS+K8H8r1RePQykFM5YyvlKo1v3xVec8FMBjg9N6mR2Tj/n/X415w+lG67FWbrk71D/CADmKFinDgaQlAsw==}
+    engines: {'0': node >= 4.0.0}
 
   postcss-selector-parser@7.1.1:
     resolution: {integrity: sha512-orRsuYpJVw8LdAwqqLykBj9ecS5/cRHlI5+nvTo8LcCKmzDmqVORXtOIYEEQuL9D4BxtA1lm5isAqzQZCoQ6Eg==}
@@ -4039,6 +4052,8 @@ snapshots:
       vue: 3.5.26(typescript@5.9.3)
     optionalDependencies:
       typescript: 5.9.3
+
+  pokersolver@2.1.4: {}
 
   postcss-selector-parser@7.1.1:
     dependencies:

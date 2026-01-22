@@ -66,6 +66,11 @@
               <el-checkbox label="green">{{ green }}</el-checkbox>
               <el-checkbox label="red">{{ red }}</el-checkbox>
               <el-checkbox label="white">{{ white }}</el-checkbox>
+
+              <!-- 新增现金筹码 -->
+              <el-checkbox label="purple">{{ purple }}</el-checkbox>
+              <el-checkbox label="pink">Pink</el-checkbox>
+              <el-checkbox label="brown">Brown</el-checkbox>
             </el-space>
           </el-checkbox-group>
         </el-form-item>
@@ -79,11 +84,17 @@
             @update:model-value="emit('update:tournamentColors', $event)"
           >
             <el-space size="large">
+              <!-- 原有 -->
               <el-checkbox label="green25k">{{ green }}（25k）</el-checkbox>
               <el-checkbox label="red5k">{{ red }}（5k）</el-checkbox>
               <el-checkbox label="yellow1k">{{ gold }}（1k）</el-checkbox>
               <el-checkbox label="purple500">{{ purple }}（500）</el-checkbox>
               <el-checkbox label="black100">{{ black }}（100）</el-checkbox>
+
+              <!-- 新增锦标赛筹码 -->
+              <el-checkbox label="blue100k">Blue（100k）</el-checkbox>
+              <el-checkbox label="orange1m">Orange（1M）</el-checkbox>
+              <el-checkbox label="grey5m">Grey（5M）</el-checkbox>
             </el-space>
           </el-checkbox-group>
         </el-form-item>
