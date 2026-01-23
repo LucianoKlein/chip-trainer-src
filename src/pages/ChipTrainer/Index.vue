@@ -62,9 +62,9 @@
     red5: 100,
     green25: 100,
     black100: 100,
-    pink: 100,
-    purple: 100,
-    brown: 100,
+    pink50: 100,
+    purple500: 100,
+    brown1000: 100,
   })
 
   const tournamentChipLimits = ref({
@@ -74,8 +74,8 @@
     yellow1k: 100,
     red5k: 100,
     blue100k: 100,
-    orange1m: 10,
-    grey5m: 10,
+    orange1m: 20,
+    grey5m: 20,
   })
 
   function saveChipConfig() {
