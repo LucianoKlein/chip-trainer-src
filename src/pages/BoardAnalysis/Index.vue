@@ -9,9 +9,10 @@
   import CardStackNew from '@/components/cards/CardStackNew.vue'
   import TextureAnalysisPanel from './components/TextureAnalysisPanel/TextureAnalysisPanel.vue'
   import HandContextMenu from './components/HandContextMenu.vue'
-
+  import Fireworks from '@/components/Fireworks.vue'
   /* =============================== 基础状态 =============================== */
 
+  const showFireworks = ref(false)
   const playerCount = ref<number>(2)
   const gameMode = ref<'holdem' | 'omaha' | 'bigo'>('omaha')
 
@@ -336,6 +337,7 @@
       .join('\n')
     if (isCorrect) {
       ElMessage.success('Correct! 🎉')
+      showFireworks.value = true
       setTimeout(dealNewHand, 1200)
     } else {
       resultMessage.value =
@@ -373,7 +375,7 @@
       <el-button type="primary" @click="handleNextQuestion"> Next Hand </el-button>
     </template>
   </el-dialog>
-
+  <Fireworks v-if="showFireworks" :duration="1000" @finished="showFireworks = false" />
   <div class="ui-page">
     <div class="ui-stage">
       <div class="ui-panel trainer-header">

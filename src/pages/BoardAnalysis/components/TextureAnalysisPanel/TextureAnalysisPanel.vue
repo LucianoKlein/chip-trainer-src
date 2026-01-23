@@ -184,7 +184,7 @@
 </script>
 
 <template>
-  <div class="ui-panel texture-panel" ref="panelRef">
+  <div class="ui-panel--sm texture-panel" ref="panelRef">
     <!-- Header -->
     <header class="panel-header" @mousedown="onDragStart">
       <span>Texture Analysis</span>
@@ -302,8 +302,7 @@
   }
 
   .panel-header {
-    padding: 10px 14px;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     display: flex;
     justify-content: space-between;
@@ -312,7 +311,7 @@
   }
 
   .collapse-toggle {
-    font-size: 18px;
+    font-size: 20px;
     cursor: pointer;
     opacity: 0.6;
   }
@@ -330,7 +329,8 @@
     align-items: center;
     justify-content: space-between;
     min-height: 32px;
-    margin-bottom: 8px;
+    margin-bottom: 2px;
+    font-size: 12px;
   }
 
   .row.vertical {
@@ -350,9 +350,9 @@
   }
 
   .panel-footer {
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-2);
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
   }
 </style>
