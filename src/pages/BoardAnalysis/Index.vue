@@ -1,6 +1,6 @@
 <script setup lang="ts">
   import { ref, onMounted, watch, nextTick, computed } from 'vue'
-  import bg from '@/assets/bg/pokeboard.png?url'
+  import bg from '@/assets/bg/pokertable.svg?url'
   import { ElMessage } from 'element-plus'
   import { Hand } from 'pokersolver'
   import BoardConfigBar from './components/BoardConfigBar.vue'
@@ -21,9 +21,9 @@
 
   // 公共牌位置控制
   const communityCardsPosition = ref({
-    top: '38%',      // 距离顶部的位置
-    left: '46%',     // 距离左侧的位置
-    width: 260,      // 容器宽度（单位：px）
+    top: '38%', // 距离顶部的位置
+    left: '46%', // 距离左侧的位置
+    width: 260, // 容器宽度（单位：px）
   })
 
   // 玩家位置控制（8个座位）
@@ -92,7 +92,9 @@
   })
 
   const hasSelection = computed(() => {
-    return Object.values(handStatuses.value).some(status => status !== 'none' && status !== 'kill')
+    return Object.values(handStatuses.value).some(
+      (status) => status !== 'none' && status !== 'kill'
+    )
   })
 
   /** ✅ 多选：你选择的所有 High 玩家 */
@@ -258,7 +260,7 @@
     if (arr.length === 0) return []
 
     const [first, ...rest] = arr
-    const withFirst = combinations(rest, k - 1).map(combo => [first, ...combo])
+    const withFirst = combinations(rest, k - 1).map((combo) => [first, ...combo])
     const withoutFirst = combinations(rest, k)
 
     return [...withFirst, ...withoutFirst]
@@ -369,8 +371,17 @@
 
       <BoardConfigBar
         @change-player-count="(n) => (playerCount = n)"
-        @change-game-mode="(mode) => { gameMode = mode; dealNewHand(); }"
-        @change-game-type="(type) => { gameType = type; }"
+        @change-game-mode="
+          (mode) => {
+            gameMode = mode
+            dealNewHand()
+          }
+        "
+        @change-game-type="
+          (type) => {
+            gameType = type
+          }
+        "
         @submit="checkAnswer"
         @next="handleNextQuestion"
       />
@@ -504,8 +515,8 @@
     height: 600px;
     margin-top: 16px;
     background-repeat: no-repeat;
-    background-size: 125% auto;
-    background-position: center 55%;
+    background-size: 126% auto;
+    background-position: center 42%;
   }
 
   .board-overlay {
@@ -689,4 +700,3 @@
     justify-content: center;
   }
 </style>
-
