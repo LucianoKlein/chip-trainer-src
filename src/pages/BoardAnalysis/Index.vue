@@ -27,6 +27,14 @@
     left: '46%', // 距离左侧的位置
     width: 260, // 容器宽度（单位：px）
   })
+  const activeSeats = ref<number[]>([])
+
+  function pickRandomSeats(count: number): number[] {
+    const allSeats = [1, 2, 3, 4, 5, 6, 7, 8]
+    return shuffle(allSeats)
+      .slice(0, count)
+      .sort((a, b) => a - b)
+  }
 
   // 玩家位置控制（8个座位）
   const playerPositions = ref([
@@ -153,22 +161,23 @@
   function dealNewHand() {
     const deck = shuffle(fullDeck)
 
+    // 🎯 随机选座位
+    activeSeats.value = pickRandomSeats(playerCount.value)
+
     boardCards.value = deck.splice(0, 5)
 
-    // 根据游戏模式决定每人发几张牌
     const cardsPerPlayer = gameMode.value === 'holdem' ? 2 : gameMode.value === 'omaha' ? 4 : 5
 
     const hands: Record<number, string[]> = {}
-    for (let seat = 1; seat <= playerCount.value; seat++) {
-      hands[seat] = deck.splice(0, cardsPerPlayer)
-    }
-    playerHands.value = hands
+    const statuses: Record<number, HandStatus> = {}
 
-    // 重置手牌状态
-    handStatuses.value = {}
-    for (let seat = 1; seat <= playerCount.value; seat++) {
-      handStatuses.value[seat] = 'none'
+    for (const seat of activeSeats.value) {
+      hands[seat] = deck.splice(0, cardsPerPlayer)
+      statuses[seat] = 'none'
     }
+
+    playerHands.value = hands
+    handStatuses.value = statuses
   }
 
   function handleNextQuestion() {
@@ -418,7 +427,7 @@
 
           <!-- 玩家手牌 -->
           <div
-            v-for="seat in playerCount"
+            v-for="seat in activeSeats"
             :key="seat"
             class="player-area"
             :style="playerPositions[seat - 1]"
