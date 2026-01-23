@@ -7,6 +7,8 @@
   import CardFace from '@/components/cards/CardFace.vue'
   import CardBack from '@/components/cards/CardBack.vue'
   import CardStackNew from '@/components/cards/CardStackNew.vue'
+  import TextureAnalysisPanel from './components/TextureAnalysisPanel/TextureAnalysisPanel.vue'
+  import HandContextMenu from './components/HandContextMenu.vue'
 
   /* =============================== 基础状态 =============================== */
 
@@ -389,6 +391,7 @@
       <!-- 训练舞台 -->
       <div class="chip-stage board" ref="boardRef" :style="{ backgroundImage: `url(${bg})` }">
         <div class="board-overlay">
+          <TextureAnalysisPanel :board-cards="boardCards" anchor-selector=".board-overlay" />
           <!-- 公共牌 -->
           <div
             class="community-cards-group"
@@ -469,36 +472,18 @@
               </div>
             </div>
           </div>
-
-          <!-- 上下文菜单 -->
-          <div
-            v-if="contextMenu.visible"
-            class="context-menu"
-            :style="{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }"
-            @click.stop
-          >
-            <div class="menu-item" @click="markAsHigh">
-              <span class="menu-icon high-icon">🔴</span>
-              <span>Mark as High</span>
-            </div>
-            <div
-              v-if="gameType === 'high-low' && (gameMode === 'omaha' || gameMode === 'bigo')"
-              class="menu-item"
-              @click="markAsLow"
-            >
-              <span class="menu-icon low-icon">🔵</span>
-              <span>Mark as Low</span>
-            </div>
-            <div class="menu-item kill-item" @click="markAsKill">
-              <span class="menu-icon">❌</span>
-              <span>Kill</span>
-            </div>
-            <div class="menu-divider"></div>
-            <div class="menu-item clear-item" @click="clearHandStatus">
-              <span class="menu-icon">↩️</span>
-              <span>Clear</span>
-            </div>
-          </div>
+          <HandContextMenu
+            :visible="contextMenu.visible"
+            :x="contextMenu.x"
+            :y="contextMenu.y"
+            :seat="contextMenu.seat"
+            :game-type="gameType"
+            :game-mode="gameMode"
+            @mark-high="markAsHigh"
+            @mark-low="markAsLow"
+            @mark-kill="markAsKill"
+            @clear="clearHandStatus"
+          />
         </div>
       </div>
     </div>
@@ -536,8 +521,8 @@
 
   .deck {
     position: absolute;
-    bottom: 67px;
-    left: 50%;
+    bottom: 24px;
+    left: 800px;
     transform: translateX(-50%);
     transform: scale(0.85);
   }
