@@ -55,20 +55,12 @@
     try {
       const user = await loginWithGoogle()
 
-      // ================= 邮箱未验证：自动重发 =================
       if (!user.emailVerified) {
         await sendEmailVerification(user)
         ElMessage.warning('邮箱尚未验证，已为你重新发送一封验证邮，请完成验证')
         await logout()
         return
       }
-
-      // ================= 已验证：初始化 / 获取用户 profile =================
-      const profile = await initUserProfile(user)
-      userStore.setProfile(profile)
-
-      ElMessage.success(profile.role === 'admin' ? '管理员登录成功' : '登录成功')
-
       router.push('/chip-trainer')
     } catch (err: any) {
       ElMessage.error(err.message || 'Google 登录失败')
@@ -111,13 +103,6 @@
             await logout()
             return
           }
-
-          // ⭐ 初始化 / 获取用户 profile
-          const profile = await initUserProfile(user)
-          userStore.setProfile(profile)
-
-          ElMessage.success(profile.role === 'admin' ? '管理员登录成功' : '登录成功')
-
           router.push('/chip-trainer')
         }
       } catch (err: any) {

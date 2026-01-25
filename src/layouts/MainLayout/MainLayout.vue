@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { ref, computed, onMounted } from 'vue'
+  import { ref, computed, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
   import { useI18n } from 'vue-i18n'
   import { ElMessage, ElMessageBox } from 'element-plus'
@@ -9,22 +9,11 @@
   import zhCn from 'element-plus/es/locale/lang/zh-cn'
   import enUs from 'element-plus/es/locale/lang/en'
 
-  import { onAuthStateChanged } from 'firebase/auth'
   import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore'
   import { auth, db } from '@/firebase'
   import { logout } from '@/services/auth'
-  import { initUserProfile } from '@/services/userProfile'
   const route = useRoute()
-  onAuthStateChanged(auth, async (user) => {
-    userStore.reset() // ⭐ 关键
 
-    if (user) {
-      const profile = await initUserProfile(user)
-      userStore.setProfile(profile)
-    } else {
-      userStore.clear()
-    }
-  })
   const showSidebar = computed(() => {
     return route.meta.layout !== 'simple' && hasValidService.value
   })
@@ -115,19 +104,6 @@
     }))
   }
 
-  onMounted(() => {
-    onAuthStateChanged(auth, async (user) => {
-      userEmail.value = user ? user.email : null
-      userId.value = user ? user.uid : null
-
-      if (user) {
-        await loadUserServices(user.uid)
-      } else {
-        userServices.value = []
-      }
-    })
-  })
-
   async function handleLogout() {
     await logout()
     ElMessage.success('已退出登录')
@@ -144,6 +120,21 @@
       return map
     }, {})
   })
+
+  watch(
+    () => userStore.profile?.uid,
+    async (uid) => {
+      userEmail.value = userStore.profile?.email ?? null
+      userId.value = uid ?? null
+
+      if (uid) {
+        await loadUserServices(uid)
+      } else {
+        userServices.value = []
+      }
+    },
+    { immediate: true }
+  )
 </script>
 
 <template>

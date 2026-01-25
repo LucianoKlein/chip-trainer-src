@@ -13,9 +13,16 @@ import { db } from '@/firebase'
 export type UserRole = 'admin' | 'user'
 
 export interface UserProfile {
+  uid: string
   email: string | null
   role: UserRole
   createdAt: any
+  services: Record<
+    string,
+    {
+      expiresAt: any
+    }
+  >
 }
 
 /**
@@ -27,22 +34,24 @@ export interface UserProfile {
 export async function initUserProfile(user: {
   uid: string
   email: string | null
-}): Promise<UserProfile> {
+}): Promise<Omit<UserProfile, 'services'>> {
   const ref = doc(db, 'users', user.uid)
   const snap = await getDoc(ref)
 
-  // 已存在，直接返回
   if (snap.exists()) {
-    return snap.data() as UserProfile
+    return {
+      uid: user.uid,
+      ...(snap.data() as any),
+    }
   }
 
-  // 是否已有 admin
   const adminQuery = query(collection(db, 'users'), where('role', '==', 'admin'))
   const adminSnap = await getDocs(adminQuery)
 
   const role: UserRole = adminSnap.empty ? 'admin' : 'user'
 
-  const profile: UserProfile = {
+  const profile = {
+    uid: user.uid,
     email: user.email,
     role,
     createdAt: serverTimestamp(),

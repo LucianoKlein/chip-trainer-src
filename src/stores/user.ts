@@ -4,11 +4,12 @@ import type { UserProfile } from '@/services/userProfile'
 export const useUserStore = defineStore('user', {
   state: () => ({
     profile: null as UserProfile | null,
-    profileLoaded: false, // ⭐ 核心
+    profileLoaded: false, // ⭐ 新增核心字段，用来标识是否加载完 profile
   }),
 
   getters: {
     isAdmin: (state) => {
+      // ⭐ 只有 profile 加载完成，且 role 为 admin 才返回 true
       return state.profileLoaded && state.profile?.role === 'admin'
     },
   },
@@ -16,23 +17,17 @@ export const useUserStore = defineStore('user', {
   actions: {
     setProfile(profile: UserProfile) {
       this.profile = profile
-      this.profileLoaded = true
+      this.profileLoaded = true // 加载完 profile 设置为 true
     },
 
-    /**
-     * 必须在登出 / auth 变化时调用
-     */
     clear() {
       this.profile = null
-      this.profileLoaded = true // 已经“明确知道没有 profile”
+      this.profileLoaded = true // 明确知道没有 profile 了
     },
 
-    /**
-     * 用于登录前 / auth 初始化
-     */
     reset() {
       this.profile = null
-      this.profileLoaded = false
+      this.profileLoaded = false // 重新初始化，表示 profile 还没有加载
     },
   },
 })
