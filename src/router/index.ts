@@ -75,33 +75,40 @@ router.beforeEach((to, from, next) => {
     return next()
   }
 
-  // ⭐⭐⭐ 关键：等 auth 初始化完成
-  if (!userStore.profileLoaded) {
-    // ⚠️ 什么都不做，等 useAuthInit 写入 store
-    return next()
+  if (!userStore.profile) {
+    return next('/login')
   }
-
   // 3️⃣ 未登录（profile 还没准备好 or 已退出）
   if (!userStore.profile) {
     return next('/login')
   }
 
   // 4️⃣ activation 仅管理员
-  if (to.path === '/activation' && !userStore.isAdmin) {
-    return next('/403')
+  if (to.path === '/activation') {
+    const role = userStore.profile?.role
+
+    if (role !== 'admin') {
+      return next('/403')
+    }
   }
 
   // 5️⃣ 不需要服务权限的页面
-  const requiredService = to.meta.requiresService
+  const requiredService = to.meta.requiresService as string
   if (!requiredService) {
     return next()
   }
 
-  // 6️⃣ 服务校验
+  // 服务权限校验（⚠️ 本地 JSON，不能用 toDate）
   const services = userStore.profile.services || {}
   const service = services[requiredService]
 
-  if (!service || service.expiresAt.toDate() <= new Date()) {
+  if (!service || !service.expiresAt || !service.expiresAt.seconds) {
+    return next('/403')
+  }
+
+  const expiresAtMs = service.expiresAt.seconds * 1000
+
+  if (expiresAtMs <= Date.now()) {
     return next('/403')
   }
 

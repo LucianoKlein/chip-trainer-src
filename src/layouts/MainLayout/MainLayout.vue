@@ -2,25 +2,17 @@
   import { ref, computed, watch } from 'vue'
   import { useRouter, useRoute } from 'vue-router'
   import { useI18n } from 'vue-i18n'
-  import { ElMessage, ElMessageBox } from 'element-plus'
+  import { ElMessage } from 'element-plus'
   import { ArrowDown } from '@element-plus/icons-vue'
   import { useUserStore } from '@/stores/user'
 
   import zhCn from 'element-plus/es/locale/lang/zh-cn'
   import enUs from 'element-plus/es/locale/lang/en'
 
-  import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore'
-  import { auth, db } from '@/firebase'
-  import { logout } from '@/services/auth'
-  const route = useRoute()
-
-  const showSidebar = computed(() => {
-    return route.meta.layout !== 'simple' && hasValidService.value
-  })
-
   /* ================= router ================= */
   const router = useRouter()
-  const userStore = useUserStore()
+  const route = useRoute()
+
   function goHome() {
     router.push('/chip-trainer')
   }
@@ -34,78 +26,70 @@
     router.push('/login')
   }
 
-  /* ================= danger action ================= */
-  async function clearAllTestData() {
-    try {
-      await ElMessageBox.confirm(
-        '⚠️ 此操作将清空所有激活码和用户服务数据，且不可恢复，是否继续？',
-        '危险操作确认',
-        {
-          type: 'error',
-          confirmButtonText: '确认清空',
-          cancelButtonText: '取消',
-        }
-      )
+  /* ================= store ================= */
+  const userStore = useUserStore()
 
-      const codeSnap = await getDocs(collection(db, 'activation_codes'))
-      await Promise.all(codeSnap.docs.map((d) => deleteDoc(doc(db, 'activation_codes', d.id))))
-
-      const serviceSnap = await getDocs(collection(db, 'user_activation_service'))
-      await Promise.all(
-        serviceSnap.docs.map((d) => deleteDoc(doc(db, 'user_activation_service', d.id)))
-      )
-
-      ElMessage.success('已清空所有测试数据')
-    } catch (e) {}
-  }
-
-  /* ================= auth ================= */
+  /* ================= user basic ================= */
   const userEmail = ref<string | null>(null)
   const userId = ref<string | null>(null)
 
-  type UserService = {
-    key: string
-    label: string
-    expiresAt: Date
-  }
-
-  const userServices = ref<UserService[]>([])
-
+  /* ================= services from local ================= */
   const SERVICE_LABEL_MAP: Record<string, string> = {
     chipTrainer: '筹码反应训练',
     boardAnalysis: '牌面训练',
   }
 
-  const hasValidService = computed(() => {
-    const now = new Date()
-    return userServices.value.some((s) => s.expiresAt > now)
+  type LocalService = {
+    key: string
+    label: string
+    expiresAtMs: number
+    valid: boolean
+  }
+  const activeMenu = computed(() => {
+    if (route.path.startsWith('/board-analysis')) return '/board-analysis'
+    if (route.path.startsWith('/chip-trainer')) return '/chip-trainer'
+    return route.path
+  })
+  const userServices = computed<LocalService[]>(() => {
+    const services = userStore.profile?.services || {}
+    const now = Date.now()
+
+    return Object.keys(services)
+      .map((key) => {
+        const seconds = services[key]?.expiresAt?.seconds
+        if (!seconds) return null
+
+        const expiresAtMs = seconds * 1000
+
+        return {
+          key,
+          label: SERVICE_LABEL_MAP[key] || key,
+          expiresAtMs,
+          valid: expiresAtMs > now,
+        }
+      })
+      .filter(Boolean) as LocalService[]
   })
 
-  async function loadUserServices(uid: string) {
-    const snap = await getDoc(doc(db, 'user_activation_service', uid))
-    console.group('🧩 User Activation Service (Server)')
-    console.log('uid:', uid)
-    console.log('exists:', snap.exists())
+  const hasValidService = computed(() => {
+    return userServices.value.some((s) => s.valid)
+  })
 
-    if (snap.exists()) {
-      console.log('raw snap.data():', snap.data())
-      console.log('services field:', snap.data()?.services)
-    }
-    if (!snap.exists()) {
-      userServices.value = []
-      return
-    }
+  const serviceValidMap = computed(() => {
+    return userServices.value.reduce<Record<string, boolean>>((map, s) => {
+      map[s.key] = s.valid
+      return map
+    }, {})
+  })
 
-    const services = snap.data().services || {}
-    userServices.value = Object.keys(services).map((key) => ({
-      key,
-      label: SERVICE_LABEL_MAP[key] || key,
-      expiresAt: services[key].expiresAt.toDate(),
-    }))
-  }
+  /* ================= sidebar ================= */
+  const showSidebar = computed(() => {
+    return route.meta.layout !== 'simple' && hasValidService.value
+  })
 
+  /* ================= auth ================= */
   async function handleLogout() {
-    await logout()
+    userStore.reset()
     ElMessage.success('已退出登录')
     router.push('/login')
   }
@@ -113,25 +97,13 @@
   /* ================= i18n ================= */
   const { locale, t } = useI18n()
   const elementLocale = computed(() => (locale.value === 'en-US' ? enUs : zhCn))
-  const serviceValidMap = computed(() => {
-    const now = new Date()
-    return userServices.value.reduce<Record<string, boolean>>((map, s) => {
-      map[s.key] = s.expiresAt > now
-      return map
-    }, {})
-  })
 
+  /* ================= watch ================= */
   watch(
-    () => userStore.profile?.uid,
-    async (uid) => {
-      userEmail.value = userStore.profile?.email ?? null
-      userId.value = uid ?? null
-
-      if (uid) {
-        await loadUserServices(uid)
-      } else {
-        userServices.value = []
-      }
+    () => userStore.profile,
+    (profile) => {
+      userEmail.value = profile?.email ?? null
+      userId.value = profile?.uid ?? null
     },
     { immediate: true }
   )
@@ -152,11 +124,6 @@
             <el-option label="简体中文" value="zh-CN" />
             <el-option label="English" value="en-US" />
           </el-select>
-
-          <!-- danger -->
-          <!-- <el-button type="danger" size="small" plain @click="clearAllTestData">
-            🧨 清空测试数据
-          </el-button> -->
 
           <!-- auth -->
           <div class="ui-auth-area">
@@ -183,7 +150,8 @@
 
                   <el-dropdown-item v-for="service in userServices" :key="service.key" disabled>
                     {{ service.label }}
-                    （至 {{ service.expiresAt.toISOString().slice(0, 10) }}）
+                    （至
+                    {{ new Date(service.expiresAtMs).toISOString().slice(0, 10) }}）
                   </el-dropdown-item>
 
                   <el-dropdown-item v-if="!userServices.length" disabled>
@@ -192,7 +160,10 @@
 
                   <el-dropdown-item divided @click="goProfile"> 个人中心 </el-dropdown-item>
 
-                  <el-dropdown-item v-if="userStore.isAdmin" @click="goActivationPage">
+                  <el-dropdown-item
+                    v-if="userStore.profile?.role === 'admin'"
+                    @click="goActivationPage"
+                  >
                     管理员页面
                   </el-dropdown-item>
 
@@ -207,18 +178,14 @@
       <!-- ================= Main ================= -->
       <div class="ui-main">
         <aside v-if="showSidebar" class="ui-sidebar">
-          <el-menu
-            router
-            default-active="/chip-trainer"
-            class="ui-menu"
-            v-if="serviceValidMap.chipTrainer"
-          >
-            <el-menu-item index="/chip-trainer">
-              {{ t('menu.chipTrainer') }}
+          <el-menu router class="ui-menu" :default-active="activeMenu">
+            <el-menu-item v-if="serviceValidMap.chipTrainer" index="/chip-trainer">
+              筹码反应训练
             </el-menu-item>
-          </el-menu>
-          <el-menu router class="ui-menu" v-if="serviceValidMap.boardAnalysis">
-            <el-menu-item index="/board-analysis"> 牌面分析训练 </el-menu-item>
+
+            <el-menu-item v-if="serviceValidMap.boardAnalysis" index="/board-analysis">
+              牌面分析训练
+            </el-menu-item>
           </el-menu>
         </aside>
 

@@ -3,9 +3,9 @@
   import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
   import { loginWithEmail, registerWithEmail, logout, loginWithGoogle } from '@/services/auth'
   import { sendEmailVerification } from 'firebase/auth'
-  import { initUserProfile } from '@/services/userProfile'
   import { useUserStore } from '@/stores/user'
   import { useRouter } from 'vue-router'
+  import { useUserBootstrap } from '@/composables/useUserBootstrap'
 
   /* ================= 基础 ================= */
 
@@ -57,10 +57,14 @@
 
       if (!user.emailVerified) {
         await sendEmailVerification(user)
-        ElMessage.warning('邮箱尚未验证，已为你重新发送一封验证邮，请完成验证')
+        ElMessage.warning('邮箱尚未验证，已为你重新发送一封验证邮件')
         await logout()
         return
       }
+
+      // ⭐ 同样：拉数据 + 存本地
+      await useUserBootstrap(user)
+
       router.push('/chip-trainer')
     } catch (err: any) {
       ElMessage.error(err.message || 'Google 登录失败')
@@ -81,28 +85,27 @@
 
       try {
         if (isRegister.value) {
-          // ===== 注册 =====
           await registerWithEmail(form.email, form.password)
           await logout()
 
           ElMessage.success('注册成功！验证邮件已发送，请前往邮箱完成验证后再登录')
-
           switchMode(false)
         } else {
-          // ===== 登录 =====
           const user = await loginWithEmail(form.email, form.password)
 
           if (!user.emailVerified) {
-            // ⭐ 自动重新发送验证邮件
             await sendEmailVerification(user)
-
             ElMessage.warning(
               '邮箱尚未验证，已为你重新发送一封验证邮件，请点击【最新一封】完成验证'
             )
-
             await logout()
             return
           }
+
+          // ⭐ 登录成功后：一次性拉数据 + 存本地
+          await useUserBootstrap(user)
+
+          // ⭐ 再跳转
           router.push('/chip-trainer')
         }
       } catch (err: any) {

@@ -1,21 +1,22 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
+import piniaPersist from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import router from './router'
+import ElementPlus from 'element-plus'
 import i18n from './i18n/config'
+
 import 'element-plus/dist/index.css'
 import '@/styles/index.css'
-import { useAuthInit } from '@/composables/useAuthInit'
 
 const app = createApp(App)
 
-app.use(createPinia())
+const pinia = createPinia()
+pinia.use(piniaPersist)
+
+app.use(pinia)
 app.use(ElementPlus)
 app.use(i18n)
 app.use(router)
-
-// ⭐ 必须在 mount 之前
-useAuthInit()
 
 app.mount('#app')
