@@ -14,13 +14,75 @@
 
   const showFireworks = ref(false)
   const playerCount = ref<number>(2)
-  const gameMode = ref<'holdem' | 'omaha' | 'bigo'>('omaha')
+  const gameMode = ref<'holdem' | 'omaha' | 'bigo' | '7stud'>('omaha')
 
   const boardCards = ref<string[]>([])
   const playerHands = ref<Record<number, string[]>>({})
+  // 7 Card Stud 专用：每个玩家的 4 张明牌
+  const playerStudCards = ref<Record<number, string[]>>({})
 
   // 公共牌间距控制
   const cardSpacing = ref<number>(88) // 默认 46px 间距
+
+  // 7 Card Stud 明牌配置 - 每个座位独立配置
+  const studCardsConfig = ref({
+    1: {
+      rotation: 0,      // 旋转角度（单位：度）
+      startLeft: 60,     // 相对hole cards的水平位置（单位：px）
+      startTop: -60,      // 相对hole cards的垂直位置（单位：px）
+      offsetX: 15,       // 每张牌的水平叠加偏移（单位：px）
+      offsetY: -15,      // 每张牌的垂直叠加偏移（单位：px，负数向上）
+    },
+    2: {
+      rotation: -8,
+      startLeft: 20,
+      startTop: 60,
+      offsetX: 15,
+      offsetY: -15,
+    },
+    3: {
+      rotation: 0,
+      startLeft: 60,
+      startTop: -100,
+      offsetX: -15,
+      offsetY: -15,       // 正数向下
+    },
+    4: {
+      rotation: 0,
+      startLeft: 20,
+      startTop: 30,
+      offsetX: 15,
+      offsetY: 15,
+    },
+    5: {
+      rotation: 0,
+      startLeft: 20,
+      startTop: 0,
+      offsetX: 25,
+      offsetY: 25,
+    },
+    6: {
+      rotation: -8,
+      startLeft: 20,
+      startTop: 0,
+      offsetX: 25,
+      offsetY: 25,
+    },
+    7: {
+      rotation: -8,
+      startLeft: 20,
+      startTop: 60,
+      offsetX: 25,
+      offsetY: -25,
+    },
+    8: {
+      rotation: 0,
+      startLeft: -80,
+      startTop: -90,
+      offsetX: -20,
+      offsetY: -20,
+    },
+  })
 
   // 背景图位置控制
   const backgroundPosition = ref({
@@ -70,6 +132,35 @@
 
   // 每个座位的手牌状态
   const handStatuses = ref<Record<number, HandStatus>>({})
+
+  // 获取 Stud 牌的配置（位置、角度、叠加方向）
+  function getStudCardConfig(seat: number) {
+    return studCardsConfig.value[seat as keyof typeof studCardsConfig.value] || studCardsConfig.value[1]
+  }
+
+  // 计算 Stud 牌的偏移
+  function getStudCardOffset(seat: number, index: number) {
+    const config = getStudCardConfig(seat)
+    return {
+      top: index * config.offsetY,
+      left: index * config.offsetX,
+    }
+  }
+
+  // 获取 Stud 牌容器的起始位置
+  function getStudCardContainerStyle(seat: number) {
+    const config = getStudCardConfig(seat)
+    return {
+      left: `${config.startLeft}px`,
+      top: `${config.startTop}px`,
+    }
+  }
+
+  // 获取 Stud 牌的旋转角度
+  function getStudCardRotation(seat: number) {
+    const config = getStudCardConfig(seat)
+    return config.rotation
+  }
 
   // 右键菜单状态
   const contextMenu = ref({
@@ -172,16 +263,32 @@
     // 🎯 随机选座位
     activeSeats.value = pickRandomSeats(playerCount.value)
 
-    boardCards.value = deck.splice(0, 5)
-
-    const cardsPerPlayer = gameMode.value === 'holdem' ? 2 : gameMode.value === 'omaha' ? 4 : 5
-
     const hands: Record<number, string[]> = {}
+    const studCards: Record<number, string[]> = {}
     const statuses: Record<number, HandStatus> = {}
 
-    for (const seat of activeSeats.value) {
-      hands[seat] = deck.splice(0, cardsPerPlayer)
-      statuses[seat] = 'none'
+    if (gameMode.value === '7stud') {
+      // 7 Card Stud: 不需要公共牌
+      boardCards.value = []
+
+      for (const seat of activeSeats.value) {
+        // 每人 3 张 hole cards + 4 张 stud cards
+        hands[seat] = deck.splice(0, 3)
+        studCards[seat] = deck.splice(0, 4)
+        statuses[seat] = 'none'
+      }
+      playerStudCards.value = studCards
+    } else {
+      // Hold'em / Omaha / Big O: 有公共牌
+      boardCards.value = deck.splice(0, 5)
+
+      const cardsPerPlayer = gameMode.value === 'holdem' ? 2 : gameMode.value === 'omaha' ? 4 : 5
+
+      for (const seat of activeSeats.value) {
+        hands[seat] = deck.splice(0, cardsPerPlayer)
+        statuses[seat] = 'none'
+      }
+      playerStudCards.value = {}
     }
 
     playerHands.value = hands
@@ -288,8 +395,12 @@
   /**
    * 根据游戏模式计算最佳牌型
    */
-  function getBestHand(holeCards: string[], board: string[]) {
-    if (gameMode.value === 'holdem') {
+  function getBestHand(holeCards: string[], board: string[], studCards?: string[]) {
+    if (gameMode.value === '7stud') {
+      // 7 Card Stud: 3张hole cards + 4张stud cards，选最好的5张
+      const allCards = [...holeCards, ...(studCards || [])]
+      return Hand.solve(allCards.map(toSolverCard))
+    } else if (gameMode.value === 'holdem') {
       // Hold'em: 手牌2张 + 公共牌5张，选最好的5张
       return Hand.solve([...holeCards, ...board].map(toSolverCard))
     } else {
@@ -312,14 +423,114 @@
     }
   }
 
+  /**
+   * 计算 Low 牌型 (8 or better)
+   * Low 规则：每张牌都 ≤8，不能有对子，同花和顺子不影响牌力
+   * 比较时高牌更低的获胜
+   */
+  function getLowHand(holeCards: string[], board: string[], studCards?: string[]): { cards: string[]; valid: boolean } | null {
+    const rankValues: Record<string, number> = {
+      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5,
+      '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10,
+      'J': 11, 'Q': 12, 'K': 13
+    }
+
+    let allCards: string[]
+    if (gameMode.value === '7stud') {
+      // 7 Card Stud: 所有7张牌
+      allCards = [...holeCards, ...(studCards || [])]
+    } else if (gameMode.value === 'holdem') {
+      // Hold'em: 不支持 Low
+      return null
+    } else {
+      // Omaha / Big O: 手牌2张 + 公共牌3张的组合
+      const holeCombos = combinations(holeCards, 2)
+      const boardCombos = combinations(board, 3)
+
+      let bestLow: string[] | null = null
+
+      for (const hole of holeCombos) {
+        for (const boardPart of boardCombos) {
+          const combo = [...hole, ...boardPart].map(toSolverCard)
+          const lowResult = checkLowHand(combo, rankValues)
+          if (lowResult.valid) {
+            if (!bestLow || compareLowHands(lowResult.cards, bestLow, rankValues) < 0) {
+              bestLow = lowResult.cards
+            }
+          }
+        }
+      }
+
+      return bestLow ? { cards: bestLow, valid: true } : { cards: [], valid: false }
+    }
+
+    // 对于 7 Card Stud，从7张中选5张最好的 Low 牌
+    const allSolverCards = allCards.map(toSolverCard)
+    const combos = combinations(allSolverCards, 5)
+
+    let bestLow: string[] | null = null
+
+    for (const combo of combos) {
+      const lowResult = checkLowHand(combo, rankValues)
+      if (lowResult.valid) {
+        if (!bestLow || compareLowHands(lowResult.cards, bestLow, rankValues) < 0) {
+          bestLow = lowResult.cards
+        }
+      }
+    }
+
+    return bestLow ? { cards: bestLow, valid: true } : { cards: [], valid: false }
+  }
+
+  /**
+   * 检查一手牌是否是有效的 Low 牌 (8 or better)
+   */
+  function checkLowHand(cards: string[], rankValues: Record<string, number>): { cards: string[]; valid: boolean } {
+    const ranks = cards.map(c => c[0])
+    const values = ranks.map(r => rankValues[r])
+
+    // 检查是否所有牌都 ≤8
+    const allUnder8 = values.every(v => v <= 8)
+    if (!allUnder8) {
+      return { cards: [], valid: false }
+    }
+
+    // 检查是否有对子
+    const rankCounts = new Map<number, number>()
+    for (const v of values) {
+      rankCounts.set(v, (rankCounts.get(v) || 0) + 1)
+    }
+    const hasPair = Array.from(rankCounts.values()).some(count => count > 1)
+    if (hasPair) {
+      return { cards: [], valid: false }
+    }
+
+    return { cards, valid: true }
+  }
+
+  /**
+   * 比较两手 Low 牌，返回负数表示 hand1 更好（更低）
+   */
+  function compareLowHands(hand1: string[], hand2: string[], rankValues: Record<string, number>): number {
+    const values1 = hand1.map(c => rankValues[c[0]]).sort((a, b) => b - a) // 从大到小
+    const values2 = hand2.map(c => rankValues[c[0]]).sort((a, b) => b - a)
+
+    for (let i = 0; i < 5; i++) {
+      if (values1[i] < values2[i]) return -1 // hand1 更好
+      if (values1[i] > values2[i]) return 1  // hand2 更好
+    }
+    return 0 // 平局
+  }
+
   function checkAnswer() {
-    if (selectedHighSeats.value.length === 0) {
+    if (selectedHighSeats.value.length === 0 && (gameType.value === 'high' || selectedLowSeats.value.length === 0)) {
       ElMessage.warning('Please select the winning player(s) first')
       return
     }
 
-    const solved = Object.entries(playerHands.value).map(([seat, cards]) => {
-      const hand = getBestHand(cards, boardCards.value)
+    // 计算 High 赢家
+    const solvedHigh = Object.entries(playerHands.value).map(([seat, cards]) => {
+      const hand = getBestHand(cards, boardCards.value, playerStudCards.value[Number(seat)])
       if (!hand) {
         console.error(`Failed to get best hand for seat ${seat}`)
       }
@@ -329,30 +540,109 @@
       }
     })
 
-    const winners = Hand.winners(solved.map((s) => s.hand))
-    const winnerSeats = solved
-      .filter((s) => winners.includes(s.hand))
+    const highWinners = Hand.winners(solvedHigh.map((s) => s.hand))
+    const highWinnerSeats = solvedHigh
+      .filter((s) => highWinners.includes(s.hand))
       .map((s) => s.seat)
       .sort((a, b) => a - b)
 
-    const isCorrect =
-      winnerSeats.length === selectedHighSeats.value.length &&
-      winnerSeats.every((seat, i) => seat === selectedHighSeats.value[i])
-    const winnerDetails = solved
-      .filter((s) => winnerSeats.includes(s.seat))
+    let isCorrect = true
+    let resultMsg = ''
+
+    // 检查 High 答案
+    const highCorrect =
+      highWinnerSeats.length === selectedHighSeats.value.length &&
+      highWinnerSeats.every((seat, i) => seat === selectedHighSeats.value[i])
+
+    if (!highCorrect) {
+      isCorrect = false
+    }
+
+    const highWinnerDetails = solvedHigh
+      .filter((s) => highWinnerSeats.includes(s.seat))
       .map((s) => `Player ${s.seat}: ${s.hand.descr}`)
       .join('\n')
+
+    // 检查 Low 答案（如果是 High-Low 模式）
+    if (gameType.value === 'high-low') {
+      const solvedLow = Object.entries(playerHands.value).map(([seat, cards]) => {
+        const lowHand = getLowHand(cards, boardCards.value, playerStudCards.value[Number(seat)])
+        return {
+          seat: Number(seat),
+          lowHand,
+        }
+      })
+
+      // 找出有效的 Low 牌
+      const validLowPlayers = solvedLow.filter((s) => s.lowHand?.valid)
+
+      let lowWinnerSeats: number[] = []
+      let lowWinnerDetails = ''
+
+      if (validLowPlayers.length > 0) {
+        const rankValues: Record<string, number> = {
+          'A': 1, '2': 2, '3': 3, '4': 4, '5': 5,
+          '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10,
+          'J': 11, 'Q': 12, 'K': 13
+        }
+
+        // 找出最好的 Low 牌
+        let bestLow = validLowPlayers[0]
+        for (const player of validLowPlayers) {
+          if (compareLowHands(player.lowHand!.cards, bestLow.lowHand!.cards, rankValues) < 0) {
+            bestLow = player
+          }
+        }
+
+        // 找出所有平局的玩家
+        lowWinnerSeats = validLowPlayers
+          .filter((p) => compareLowHands(p.lowHand!.cards, bestLow.lowHand!.cards, rankValues) === 0)
+          .map((p) => p.seat)
+          .sort((a, b) => a - b)
+
+        lowWinnerDetails = lowWinnerSeats
+          .map((seat) => {
+            const player = solvedLow.find((s) => s.seat === seat)
+            return `Player ${seat}: ${player?.lowHand?.cards.join(' ')}`
+          })
+          .join('\n')
+      }
+
+      const lowCorrect =
+        lowWinnerSeats.length === selectedLowSeats.value.length &&
+        lowWinnerSeats.every((seat, i) => seat === selectedLowSeats.value[i])
+
+      if (!lowCorrect) {
+        isCorrect = false
+      }
+
+      if (!isCorrect) {
+        resultMessage.value =
+          `Wrong ❌\n\n` +
+          `High winner(s): ${highWinnerSeats.join(', ')}\n` +
+          `${highWinnerDetails}\n\n` +
+          `Low winner(s): ${lowWinnerSeats.length > 0 ? lowWinnerSeats.join(', ') : 'No qualifying low'}\n` +
+          `${lowWinnerDetails}\n\n` +
+          `Your High answer: ${selectedHighSeats.value.join(', ') || 'None'}\n` +
+          `Your Low answer: ${selectedLowSeats.value.join(', ') || 'None'}`
+        showResult.value = true
+      }
+    } else {
+      // High only 模式
+      if (!isCorrect) {
+        resultMessage.value =
+          `Wrong ❌\n\n` +
+          `Correct winner(s): ${highWinnerSeats.join(', ')}\n\n` +
+          `Winning hand(s):\n${highWinnerDetails}\n\n` +
+          `Your answer: ${selectedHighSeats.value.join(', ') || 'None'}`
+        showResult.value = true
+      }
+    }
+
     if (isCorrect) {
       ElMessage.success('Correct! 🎉')
       showFireworks.value = true
       setTimeout(dealNewHand, 1200)
-    } else {
-      resultMessage.value =
-        `Wrong ❌\n\n` +
-        `Correct winner(s): ${winnerSeats.join(', ')}\n\n` +
-        `Winning hand(s):\n${winnerDetails}\n\n` +
-        `Your answer: ${selectedHighSeats.value.join(', ') || 'None'}`
-      showResult.value = true
     }
   }
 
@@ -414,8 +704,9 @@
       }">
         <div class="board-overlay">
           <TextureAnalysisPanel :board-cards="boardCards" anchor-selector=".board-overlay" />
-          <!-- 公共牌 -->
+          <!-- 公共牌 (仅在非 7 Card Stud 模式下显示) -->
           <div
+            v-if="gameMode !== '7stud'"
             class="community-cards-group"
             :style="{
               top: communityCardsPosition.top,
@@ -449,6 +740,7 @@
             <div class="player-hand" v-if="playerHands[seat]">
               <!-- Kill 状态显示卡片背面 -->
               <template v-if="handStatuses[seat] === 'kill'">
+                <!-- Hole Cards -->
                 <div
                   v-for="(card, i) in playerHands[seat]"
                   :key="i"
@@ -457,10 +749,27 @@
                 >
                   <CardBack />
                 </div>
+                <!-- Stud Cards (7 Card Stud) -->
+                <div v-if="gameMode === '7stud' && playerStudCards[seat]" class="stud-cards-container" :style="getStudCardContainerStyle(seat)">
+                  <div
+                    v-for="(card, i) in playerStudCards[seat]"
+                    :key="`stud-${i}`"
+                    class="stud-card dim-card"
+                    :style="{
+                      top: `${getStudCardOffset(seat, i).top}px`,
+                      left: `${getStudCardOffset(seat, i).left}px`,
+                      transform: `rotate(${getStudCardRotation(seat)}deg)`,
+                      zIndex: 100 + i
+                    }"
+                  >
+                    <CardBack />
+                  </div>
+                </div>
               </template>
 
               <!-- 正常状态显示牌面 -->
               <template v-else>
+                <!-- Hole Cards -->
                 <div
                   v-for="(card, i) in playerHands[seat]"
                   :key="i"
@@ -474,6 +783,28 @@
                     :activeLow="activeLowSeatSet.has(seat - 1)"
                     :has-selection="handStatuses[seat] !== 'none' && hasSelection"
                   />
+                </div>
+                <!-- Stud Cards (7 Card Stud) -->
+                <div v-if="gameMode === '7stud' && playerStudCards[seat]" class="stud-cards-container" :style="getStudCardContainerStyle(seat)">
+                  <div
+                    v-for="(card, i) in playerStudCards[seat]"
+                    :key="`stud-${i}`"
+                    class="stud-card"
+                    :style="{
+                      top: `${getStudCardOffset(seat, i).top}px`,
+                      left: `${getStudCardOffset(seat, i).left}px`,
+                      transform: `rotate(${getStudCardRotation(seat)}deg)`,
+                      zIndex: 100 + i
+                    }"
+                  >
+                    <CardFace
+                      :card="card"
+                      :scale="1"
+                      :active="activeHighSeatSet.has(seat - 1)"
+                      :activeLow="activeLowSeatSet.has(seat - 1)"
+                      :has-selection="handStatuses[seat] !== 'none' && hasSelection"
+                    />
+                  </div>
                 </div>
               </template>
 
@@ -563,6 +894,21 @@
   .hand-card {
     position: absolute;
     top: 0;
+  }
+
+  /* ===============================
+ 7 Card Stud 明牌区域
+ =============================== */
+
+  .stud-cards-container {
+    position: absolute;
+    top: 0;
+    /* left 和 top 通过 inline style 动态设置 */
+  }
+
+  .stud-card {
+    position: absolute;
+    /* transform (rotation) 通过 inline style 动态设置 */
   }
 
   /* ===============================

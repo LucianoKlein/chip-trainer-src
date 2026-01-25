@@ -9,7 +9,7 @@
     y: number
     seat: number
     gameType: 'high' | 'high-low'
-    gameMode: 'holdem' | 'omaha' | 'bigo'
+    gameMode: 'holdem' | 'omaha' | 'bigo' | '7stud'
   }>()
 
   const emit = defineEmits<{
@@ -21,7 +21,7 @@
 
   const showLow = computed(() => {
     return (
-      props.gameType === 'high-low' && (props.gameMode === 'omaha' || props.gameMode === 'bigo')
+      props.gameType === 'high-low' && (props.gameMode === 'omaha' || props.gameMode === 'bigo' || props.gameMode === '7stud')
     )
   })
 </script>

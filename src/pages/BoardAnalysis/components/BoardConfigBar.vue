@@ -2,7 +2,7 @@
   import { ref, watch } from 'vue'
 
   const playerCount = ref(2)
-  const gameMode = ref<'holdem' | 'omaha' | 'bigo'>('omaha')
+  const gameMode = ref<'holdem' | 'omaha' | 'bigo' | '7stud'>('omaha')
   const gameType = ref<'high' | 'high-low'>('high')
 
   /**
@@ -10,7 +10,7 @@
    */
   const emit = defineEmits<{
     (e: 'change-player-count', value: number): void
-    (e: 'change-game-mode', value: 'holdem' | 'omaha' | 'bigo'): void
+    (e: 'change-game-mode', value: 'holdem' | 'omaha' | 'bigo' | '7stud'): void
     (e: 'change-game-type', value: 'high' | 'high-low'): void
     (e: 'submit'): void
     (e: 'next'): void
@@ -20,7 +20,7 @@
     emit('change-player-count', value)
   }
 
-  function onGameModeChange(value: 'holdem' | 'omaha' | 'bigo') {
+  function onGameModeChange(value: 'holdem' | 'omaha' | 'bigo' | '7stud') {
     emit('change-game-mode', value)
   }
 
@@ -60,6 +60,7 @@
         <el-option label="Hold'em" value="holdem" />
         <el-option label="Omaha" value="omaha" />
         <el-option label="Big O" value="bigo" />
+        <el-option label="7 Card Stud" value="7stud" />
       </el-select>
 
       <span class="config-label">游戏类型</span>
@@ -82,7 +83,7 @@
         style="width: 120px"
         @change="onPlayerChange"
       >
-        <el-option v-for="n in 7" :key="n + 1" :label="`${n + 1} 人`" :value="n + 1" />
+        <el-option v-for="n in (gameMode === '7stud' ? 6 : 7)" :key="n + 1" :label="`${n + 1} 人`" :value="n + 1" />
       </el-select>
     </div>
 
