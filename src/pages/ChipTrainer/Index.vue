@@ -22,6 +22,11 @@
     purple,
     inputPlaceholder,
     gold,
+    pink,
+    brown,
+    orange,
+    grey,
+    blue,
   } = useChipTrainingI18n()
   const { save, cancel } = useUISystem()
   const tournamentInputRef = ref<InstanceType<typeof TournamentAnswerInput> | null>(null)
@@ -43,13 +48,13 @@
   ])
 
   const enabledColors = ref<CashColor[]>([
-    'white',
-    'red',
-    'green',
-    'black',
-    'pink',
-    'purple',
-    'brown',
+    'white1',
+    'red5',
+    'green25',
+    'black100',
+    'pink2',
+    'purple500',
+    'brown3',
   ])
   const gameType = ref<'cash' | 'tournament'>('cash')
 
@@ -62,9 +67,9 @@
     red5: 100,
     green25: 100,
     black100: 100,
-    pink50: 100,
+    pink2: 100,
     purple500: 100,
-    brown1000: 100,
+    brown3: 100,
   })
 
   const tournamentChipLimits = ref({
@@ -250,6 +255,14 @@
             <el-input-number v-model="cashChipLimits.white1" :min="0" :max="1000" />
           </div>
           <div class="config-item">
+            <span class="config-label">{{ pink }}(2)</span>
+            <el-input-number v-model="cashChipLimits.pink2" :min="0" :max="1000" />
+          </div>
+          <div class="config-item">
+            <span class="config-label">{{ brown }}(3)</span>
+            <el-input-number v-model="cashChipLimits.brown3" :min="0" :max="1000" />
+          </div>
+          <div class="config-item">
             <span class="config-label">{{ red }} (5)</span>
             <el-input-number v-model="cashChipLimits.red5" :min="0" :max="1000" />
           </div>
@@ -262,18 +275,8 @@
             <el-input-number v-model="cashChipLimits.black100" :min="0" :max="1000" />
           </div>
           <div class="config-item">
-            <span class="config-label">Pink</span>
-            <el-input-number v-model="cashChipLimits.pink" :min="0" :max="1000" />
-          </div>
-
-          <div class="config-item">
-            <span class="config-label">Purple</span>
-            <el-input-number v-model="cashChipLimits.purple" :min="0" :max="1000" />
-          </div>
-
-          <div class="config-item">
-            <span class="config-label">Brown</span>
-            <el-input-number v-model="cashChipLimits.brown" :min="0" :max="1000" />
+            <span class="config-label">{{ purple }} (500)</span>
+            <el-input-number v-model="cashChipLimits.purple500" :min="0" :max="1000" />
           </div>
         </div>
       </section>
@@ -315,17 +318,17 @@
           </div>
 
           <div class="config-item">
-            <span class="config-label">Blue (100k)</span>
+            <span class="config-label">{{ blue }} (100k)</span>
             <el-input-number v-model="tournamentChipLimits.blue100k" :min="0" :max="1000" />
           </div>
 
           <div class="config-item">
-            <span class="config-label">Orange (1M)</span>
+            <span class="config-label">{{ orange }} (1M)</span>
             <el-input-number v-model="tournamentChipLimits.orange1m" :min="0" :max="20" />
           </div>
 
           <div class="config-item">
-            <span class="config-label">Grey (5M)</span>
+            <span class="config-label">{{ grey }} (5M)</span>
             <el-input-number v-model="tournamentChipLimits.grey5m" :min="0" :max="20" />
           </div>
         </div>

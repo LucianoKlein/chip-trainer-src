@@ -5,8 +5,7 @@ import ChipTrainer from '@/pages/ChipTrainer/Index.vue'
 import Login from '@/pages/Login/Index.vue'
 import { doc, getDoc } from 'firebase/firestore'
 import BoardAnalysis from '@/pages/BoardAnalysis/Index.vue'
-import { onAuthStateChanged } from 'firebase/auth'
-
+import { useUserStore } from '@/stores/user'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -63,67 +62,53 @@ const router = createRouter({
   ],
 })
 
-/* ================= Auth Guard ================= */
-function getCurrentUser() {
-  return new Promise((resolve) => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      unsubscribe()
-      resolve(user)
-    })
-  })
-}
+router.beforeEach((to, from, next) => {
+  const userStore = useUserStore()
 
-router.beforeEach(async (to, from, next) => {
-  console.log(to.meta)
-  // ⭐ 404 页面直接放行
-  if (to.meta.is404) {
-    return next()
-  }
-  // 0. 公共页面直接放行（防死循环）
-  if (to.path === '/login' || to.path === '/profile' || to.path === '/403') {
+  // 1️⃣ 404 直接放行
+  if (to.matched.some((record) => record.meta.is404)) {
     return next()
   }
 
-  // 1. 登录校验
-  const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
-
-  if (requiresAuth) {
-    const u = await getCurrentUser()
-    if (!u || !u.emailVerified) {
-      return next('/login')
-    }
+  // 2️⃣ 登录页放行
+  if (to.path === '/login') {
+    return next()
   }
 
-  // 2. 当前用户
-  const user = auth.currentUser
-  if (!user) {
+  if (!userStore.profile) {
+    return next('/login')
+  }
+  // 3️⃣ 未登录（profile 还没准备好 or 已退出）
+  if (!userStore.profile) {
     return next('/login')
   }
 
-  // 3. 读取服务
-  const snap = await getDoc(doc(db, 'user_activation_service', user.uid))
-  const services = snap.exists() ? snap.data().services || {} : {}
+  // 4️⃣ activation 仅管理员
+  if (to.path === '/activation') {
+    const role = userStore.profile?.role
 
-  const now = new Date()
-  const hasAnyValidService = Object.values(services).some((s: any) => s?.expiresAt?.toDate() > now)
-
-  const requiredService = to.meta.requiresService
-
-  // ⭐ 核心分流逻辑
-  if (!hasAnyValidService) {
-    if (requiredService) {
+    if (role !== 'admin') {
       return next('/403')
     }
-    return next('/profile')
   }
 
-  // 4. 具体服务权限
+  // 5️⃣ 不需要服务权限的页面
+  const requiredService = to.meta.requiresService as string
   if (!requiredService) {
     return next()
   }
 
+  // 服务权限校验（⚠️ 本地 JSON，不能用 toDate）
+  const services = userStore.profile.services || {}
   const service = services[requiredService]
-  if (!service || service.expiresAt.toDate() <= now) {
+
+  if (!service || !service.expiresAt || !service.expiresAt.seconds) {
+    return next('/403')
+  }
+
+  const expiresAtMs = service.expiresAt.seconds * 1000
+
+  if (expiresAtMs <= Date.now()) {
     return next('/403')
   }
 
