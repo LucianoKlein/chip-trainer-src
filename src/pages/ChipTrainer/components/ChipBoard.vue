@@ -13,7 +13,11 @@
 <template>
   <section class="chip-board">
     <div class="chip-stacks">
-      <div v-for="(group, idx) in groups" :key="idx" class="chip-stack">
+      <div
+        v-for="(group, idx) in groups"
+        :key="`${group.color}-${group.count}-${idx}`"
+        class="chip-stack"
+      >
         <ChipStack :color="group.color" :count="group.count" :size="72" :spacing="10" />
       </div>
     </div>
