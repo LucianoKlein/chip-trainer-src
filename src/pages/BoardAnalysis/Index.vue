@@ -7,9 +7,13 @@
   import CardFace from '@/components/cards/CardFace.vue'
   import CardBack from '@/components/cards/CardBack.vue'
   import CardStackNew from '@/components/cards/CardStackNew.vue'
-  import TextureAnalysisPanel from './components/TextureAnalysisPanel/TextureAnalysisPanel.vue'
+  import TextureAnalysisPanel from './components/TextureAnalysisPanel.vue'
   import HandContextMenu from './components/HandContextMenu.vue'
   import Fireworks from '@/components/Fireworks.vue'
+  import useBoardAnalysisTrainingI18n from '@/i18n/customHook/useBoardAnalysis'
+
+  const { pageTitle, markHigh, markLow, kill, close } = useBoardAnalysisTrainingI18n()
+
   /* =============================== 基础状态 =============================== */
 
   const showFireworks = ref(false)
@@ -546,6 +550,12 @@
       .map((s) => s.seat)
       .sort((a, b) => a - b)
 
+    const isCorrect =
+      winnerSeats.length === selectedHighSeats.value.length &&
+      winnerSeats.every((seat, i) => seat === selectedHighSeats.value[i])
+    const winnerDetails = solved
+      .filter((s) => winnerSeats.includes(s.seat))
+      .map((s) => `玩家 ${s.seat}: ${s.hand.descr}`)
     let isCorrect = true
     let resultMsg = ''
 
@@ -562,6 +572,10 @@
       .filter((s) => highWinnerSeats.includes(s.seat))
       .map((s) => `Player ${s.seat}: ${s.hand.descr}`)
       .join('\n')
+    if (isCorrect) {
+      ElMessage.success('正确! 🎉')
+      showFireworks.value = true
+      setTimeout(dealNewHand, 1200)
 
     // 检查 Low 答案（如果是 High-Low 模式）
     if (gameType.value === 'high-low') {
@@ -628,6 +642,13 @@
         showResult.value = true
       }
     } else {
+      resultMessage.value =
+        `正确的获胜者: ${winnerSeats.join(', ')}\n\n` +
+        `获胜玩家:\n${winnerDetails}\n\n` +
+        `你的答案: ${selectedHighSeats.value.join(', ') || 'None'}`
+      showResult.value = true
+    }
+  }
       // High only 模式
       if (!isCorrect) {
         resultMessage.value =
@@ -661,22 +682,22 @@
 </script>
 
 <template>
-  <el-dialog v-model="showResult" title="Wrong Answer" width="420px" :close-on-click-modal="false">
+  <el-dialog v-model="showResult" title="回答错误" width="420px" :close-on-click-modal="false">
     <pre style="white-space: pre-wrap; line-height: 1.6"
       >{{ resultMessage }}
   </pre
     >
 
     <template #footer>
-      <el-button @click="showResult = false"> I got it </el-button>
-      <el-button type="primary" @click="handleNextQuestion"> Next Hand </el-button>
+      <el-button @click="showResult = false"> 确认 </el-button>
+      <el-button type="primary" @click="handleNextQuestion">换一题</el-button>
     </template>
   </el-dialog>
   <Fireworks v-if="showFireworks" :duration="1000" @finished="showFireworks = false" />
   <div class="ui-page">
     <div class="ui-stage">
       <div class="ui-panel trainer-header">
-        <h1 class="page-title">读牌训练</h1>
+        <h1 class="page-title">{{ pageTitle }}</h1>
       </div>
 
       <BoardConfigBar
