@@ -54,6 +54,11 @@
   import Blue100kAng2 from '@/assets/chips/blue100k/ang2.svg?component'
   import Blue100kAng3 from '@/assets/chips/blue100k/ang3.svg?component'
   import Blue100kAng4 from '@/assets/chips/blue100k/ang4.svg?component'
+
+  import Pink500kAng1 from '@/assets/chips/pink500k/ang1.svg?component'
+  import Pink500kAng2 from '@/assets/chips/pink500k/ang2.svg?component'
+  import Pink500kAng3 from '@/assets/chips/pink500k/ang3.svg?component'
+  import Pink500kAng4 from '@/assets/chips/pink500k/ang4.svg?component'
   // 绿色
   import Green25kAng1 from '@/assets/chips/green25k/ang1.svg?component'
   import Green25kAng2 from '@/assets/chips/green25k/ang2.svg?component'
@@ -81,7 +86,7 @@
   import TourBlackAng4 from '@/assets/chips/black100/ang4.svg?component'
 
   type Angle = 'ang1' | 'ang2' | 'ang3' | 'ang4'
-  type CashColor = 'white1' | 'red5' | 'green25' | 'black100' | 'pink2' | 'purple500' | 'brown3'
+  type CashColor = 'white1' | 'red5' | 'green25' | 'black100' | 'pink2' | 'purple500' | 'brown3' | 'yellow1k' | 'red5k' | 'green25k'
   type TournamentColor =
     | 'red5k'
     | 'green25k'
@@ -91,6 +96,7 @@
     | 'grey5m'
     | 'orange1m'
     | 'blue100k'
+    | 'pink500k'
   type Color = CashColor | TournamentColor
 
   const props = defineProps<{
@@ -165,6 +171,12 @@
       ang2: Blue100kAng2,
       ang3: Blue100kAng3,
       ang4: Blue100kAng4,
+    },
+    pink500k: {
+      ang1: Pink500kAng1,
+      ang2: Pink500kAng2,
+      ang3: Pink500kAng3,
+      ang4: Pink500kAng4,
     },
     green25k: {
       ang1: Green25kAng1,

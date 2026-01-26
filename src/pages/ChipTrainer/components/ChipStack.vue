@@ -5,6 +5,7 @@
 
   type Angle = 'ang1' | 'ang2' | 'ang3' | 'ang4'
   type Color =
+    // 现金赛
     | 'white1'
     | 'red5'
     | 'green25'
@@ -12,11 +13,12 @@
     | 'pink2'
     | 'purple500'
     | 'brown3'
-    // 锦标赛
-    | 'green25k'
-    | 'red5k'
     | 'yellow1k'
+    | 'red5k'
+    | 'green25k'
+    // 锦标赛
     | 'blue100k'
+    | 'pink500k'
     | 'orange1m'
     | 'grey5m'
 

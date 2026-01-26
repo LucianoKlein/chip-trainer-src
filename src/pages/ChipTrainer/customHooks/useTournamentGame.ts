@@ -44,12 +44,13 @@ export function useTournamentGame(config: TournamentGameConfig) {
     const ORDER: TournamentColor[] = [
       'grey5m',
       'orange1m',
+      'pink500k',
       'blue100k',
+      'green25k',
       'red5k',
       'yellow1k',
       'purple500',
       'black100',
-      'green25k',
     ]
 
     for (const color of ORDER) {

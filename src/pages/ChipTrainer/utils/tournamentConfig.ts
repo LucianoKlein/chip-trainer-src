@@ -9,6 +9,7 @@ export type TournamentColor =
   | 'red5k'
   | 'green25k'
   | 'blue100k'
+  | 'pink500k'
   | 'orange1m'
   | 'grey5m'
 
@@ -50,6 +51,10 @@ export const TOURNAMENT_CHIPS: Record<
   blue100k: {
     value: 100000,
     smallGroup: 5,
+  },
+  pink500k: {
+    value: 500000,
+    smallGroup: 4,
   },
   orange1m: {
     value: 1_000_000,

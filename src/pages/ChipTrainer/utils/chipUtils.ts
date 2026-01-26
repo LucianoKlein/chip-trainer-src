@@ -66,17 +66,73 @@ export const CHIP_TYPES = {
   export function splitWhiteStacks(count: number) {
     const result: number[] = []
     let remaining = count
-  
+
     while (remaining >= 20) {
       result.push(20)
       remaining -= 20
     }
-  
+
     while (remaining >= 5) {
       result.push(5)
       remaining -= 5
     }
-  
+
+    if (remaining > 0) result.push(remaining)
+    return result
+  }
+
+  /**
+   * 黄色1k分组（20 / 5 / remainder）
+   * 与白色相同逻辑
+   */
+  export function splitYellow1kStacks(count: number) {
+    return splitWhiteStacks(count)
+  }
+
+  /**
+   * 红色5k分组（随机选择5或4作为小组单位）
+   * 50%的情况：大于5个时，5个一组
+   * 50%的情况：大于4个时，4个一组
+   */
+  export function splitRed5kStacks(count: number) {
+    const result: number[] = []
+    let remaining = count
+
+    // 先处理20个一组
+    while (remaining >= 20) {
+      result.push(20)
+      remaining -= 20
+    }
+
+    // 50%选择5个一组，50%选择4个一组
+    const choice = Math.random() < 0.5 ? 5 : 4
+
+    while (remaining >= choice) {
+      result.push(choice)
+      remaining -= choice
+    }
+
+    if (remaining > 0) result.push(remaining)
+    return result
+  }
+
+  /**
+   * 绿色25k分组（20 / 4 / remainder）
+   */
+  export function splitGreen25kStacks(count: number) {
+    const result: number[] = []
+    let remaining = count
+
+    while (remaining >= 20) {
+      result.push(20)
+      remaining -= 20
+    }
+
+    while (remaining >= 4) {
+      result.push(4)
+      remaining -= 4
+    }
+
     if (remaining > 0) result.push(remaining)
     return result
   }

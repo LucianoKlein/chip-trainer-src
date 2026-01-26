@@ -18,7 +18,7 @@
 
   const showFireworks = ref(false)
   const playerCount = ref<number>(2)
-  const gameMode = ref<'holdem' | 'omaha' | 'bigo' | '7stud'>('omaha')
+  const gameMode = ref<'holdem' | 'omaha' | 'bigo' | '7stud' | 'razz' | 'badugi'>('omaha')
 
   const boardCards = ref<string[]>([])
   const playerHands = ref<Record<number, string[]>>({})
@@ -28,7 +28,7 @@
   // 公共牌间距控制
   const cardSpacing = ref<number>(88) // 默认 46px 间距
 
-  // 7 Card Stud 明牌配置 - 每个座位独立配置
+  // 7 Card Stud 明牌配置 - 每个座位独立配置（2号位和7号位不参与游戏）
   const studCardsConfig = ref({
     1: {
       rotation: 0,      // 旋转角度（单位：度）
@@ -37,51 +37,37 @@
       offsetX: 15,       // 每张牌的水平叠加偏移（单位：px）
       offsetY: -15,      // 每张牌的垂直叠加偏移（单位：px，负数向上）
     },
-    2: {
-      rotation: -8,
-      startLeft: 20,
-      startTop: 60,
-      offsetX: 15,
-      offsetY: -15,
-    },
     3: {
       rotation: 0,
       startLeft: 60,
       startTop: -100,
-      offsetX: -15,
+      offsetX: 15,
       offsetY: -15,       // 正数向下
     },
     4: {
       rotation: 0,
       startLeft: 20,
-      startTop: 30,
+      startTop: 50,
       offsetX: 15,
       offsetY: 15,
     },
     5: {
       rotation: 0,
       startLeft: 20,
-      startTop: 0,
-      offsetX: 25,
-      offsetY: 25,
+      startTop: 50,
+      offsetX: 15,
+      offsetY: 15,
     },
     6: {
-      rotation: -8,
+      rotation: 0,
       startLeft: 20,
-      startTop: 0,
+      startTop: 50,
       offsetX: 25,
       offsetY: 25,
-    },
-    7: {
-      rotation: -8,
-      startLeft: 20,
-      startTop: 60,
-      offsetX: 25,
-      offsetY: -25,
     },
     8: {
       rotation: 0,
-      startLeft: -80,
+      startLeft: -85,
       startTop: -90,
       offsetX: -20,
       offsetY: -20,
@@ -104,7 +90,9 @@
   const activeSeats = ref<number[]>([])
 
   function pickRandomSeats(count: number): number[] {
-    const allSeats = [1, 2, 3, 4, 5, 6, 7, 8]
+    // 7 Card Stud 和 Razz 模式下，只使用 1, 3, 4, 5, 6, 8 号座位（排除 2 和 7）
+    // Badugi 模式使用所有8个座位
+    const allSeats = (gameMode.value === '7stud' || gameMode.value === 'razz') ? [1, 3, 4, 5, 6, 8] : [1, 2, 3, 4, 5, 6, 7, 8]
     return shuffle(allSeats)
       .slice(0, count)
       .sort((a, b) => a - b)
@@ -174,8 +162,8 @@
     seat: 0,
   })
 
-  // 游戏类型：High 或 High Low
-  const gameType = ref<'high' | 'high-low'>('high')
+  // 游戏类型：High 或 High Low 或 A-5 Low 或 2-7 Low 或 Badugi
+  const gameType = ref<'high' | 'high-low' | 'a5-low' | '2-7-low' | 'badugi'>('high')
 
   /* =============================== 结果弹窗 =============================== */
 
@@ -271,8 +259,8 @@
     const studCards: Record<number, string[]> = {}
     const statuses: Record<number, HandStatus> = {}
 
-    if (gameMode.value === '7stud') {
-      // 7 Card Stud: 不需要公共牌
+    if (gameMode.value === '7stud' || gameMode.value === 'razz') {
+      // 7 Card Stud / Razz: 不需要公共牌
       boardCards.value = []
 
       for (const seat of activeSeats.value) {
@@ -282,6 +270,15 @@
         statuses[seat] = 'none'
       }
       playerStudCards.value = studCards
+    } else if (gameMode.value === 'badugi') {
+      // Badugi: 不需要公共牌，每人4张牌
+      boardCards.value = []
+
+      for (const seat of activeSeats.value) {
+        hands[seat] = deck.splice(0, 4)
+        statuses[seat] = 'none'
+      }
+      playerStudCards.value = {}
     } else {
       // Hold'em / Omaha / Big O: 有公共牌
       boardCards.value = deck.splice(0, 5)
@@ -400,8 +397,8 @@
    * 根据游戏模式计算最佳牌型
    */
   function getBestHand(holeCards: string[], board: string[], studCards?: string[]) {
-    if (gameMode.value === '7stud') {
-      // 7 Card Stud: 3张hole cards + 4张stud cards，选最好的5张
+    if (gameMode.value === '7stud' || gameMode.value === 'razz') {
+      // 7 Card Stud / Razz: 3张hole cards + 4张stud cards，选最好的5张
       const allCards = [...holeCards, ...(studCards || [])]
       return Hand.solve(allCards.map(toSolverCard))
     } else if (gameMode.value === 'holdem') {
@@ -526,7 +523,315 @@
     return 0 // 平局
   }
 
+  /**
+   * Razz A-5 Low：计算牌力评分（越小越好）
+   * 规则：A算1点，同花和顺子不影响牌力，但对子、两对、三条、葫芦、四条让牌力变差
+   */
+  function getA5LowScore(cards: string[]): { score: number; highCards: number[] } {
+    const rankValues: Record<string, number> = {
+      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5,
+      '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10,
+      'J': 11, 'Q': 12, 'K': 13
+    }
+
+    const ranks = cards.map(c => c[0])
+    const values = ranks.map(r => rankValues[r])
+
+    // 统计每个点数的数量
+    const rankCounts = new Map<number, number>()
+    for (const v of values) {
+      rankCounts.set(v, (rankCounts.get(v) || 0) + 1)
+    }
+
+    // 判断牌型
+    const counts = Array.from(rankCounts.values()).sort((a, b) => b - a)
+    let handType = 0 // 0=高牌, 1=一对, 2=两对, 3=三条, 4=葫芦, 5=四条
+
+    if (counts[0] === 4) handType = 5 // 四条
+    else if (counts[0] === 3 && counts[1] === 2) handType = 4 // 葫芦
+    else if (counts[0] === 3) handType = 3 // 三条
+    else if (counts[0] === 2 && counts[1] === 2) handType = 2 // 两对
+    else if (counts[0] === 2) handType = 1 // 一对
+
+    // 获取高牌（从大到小排序）
+    const highCards = values.sort((a, b) => b - a)
+
+    // 牌型权重 * 1000000，然后加上高牌比较
+    return { score: handType * 1000000, highCards }
+  }
+
+  /**
+   * Razz 2-7 Low：计算牌力评分（越小越好）
+   * 规则：A算14点，顺子和同花让牌力变差，对子、两对、三条、顺子、同花、葫芦、四条、同花顺一个比一个差
+   */
+  function get27LowScore(cards: string[]): { score: number; highCards: number[] } {
+    const rankValues: Record<string, number> = {
+      'A': 14, '2': 2, '3': 3, '4': 4, '5': 5,
+      '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10,
+      'J': 11, 'Q': 12, 'K': 13
+    }
+
+    const ranks = cards.map(c => c[0])
+    const suits = cards.map(c => c[1])
+    const values = ranks.map(r => rankValues[r])
+
+    // 统计每个点数的数量
+    const rankCounts = new Map<number, number>()
+    for (const v of values) {
+      rankCounts.set(v, (rankCounts.get(v) || 0) + 1)
+    }
+
+    // 判断是否同花
+    const isFlush = suits.every(s => s === suits[0])
+
+    // 判断是否顺子
+    const sortedValues = [...values].sort((a, b) => a - b)
+    const isStraight = sortedValues.every((v, i) => {
+      if (i === 0) return true
+      return v === sortedValues[i - 1] + 1
+    })
+
+    // 判断牌型
+    const counts = Array.from(rankCounts.values()).sort((a, b) => b - a)
+    let handType = 0 // 0=高牌
+
+    if (isFlush && isStraight) handType = 8 // 同花顺
+    else if (counts[0] === 4) handType = 7 // 四条
+    else if (counts[0] === 3 && counts[1] === 2) handType = 6 // 葫芦
+    else if (isFlush) handType = 5 // 同花
+    else if (isStraight) handType = 4 // 顺子
+    else if (counts[0] === 3) handType = 3 // 三条
+    else if (counts[0] === 2 && counts[1] === 2) handType = 2 // 两对
+    else if (counts[0] === 2) handType = 1 // 一对
+
+    // 获取高牌（从大到小排序）
+    const highCards = values.sort((a, b) => b - a)
+
+    // 牌型权重 * 1000000，然后加上高牌比较
+    return { score: handType * 1000000, highCards }
+  }
+
+  /**
+   * 获取 Razz 模式下的最佳 Low 牌
+   */
+  function getRazzLowHand(holeCards: string[], studCards: string[]): { cards: string[]; score: number; highCards: number[] } {
+    const allCards = [...holeCards, ...studCards]
+    const allSolverCards = allCards.map(toSolverCard)
+    const combos = combinations(allSolverCards, 5)
+
+    let bestLow: { cards: string[]; score: number; highCards: number[] } | null = null
+
+    for (const combo of combos) {
+      const scoreResult = gameType.value === 'a5-low' ? getA5LowScore(combo) : get27LowScore(combo)
+
+      if (!bestLow || scoreResult.score < bestLow.score ||
+          (scoreResult.score === bestLow.score && compareHighCards(scoreResult.highCards, bestLow.highCards) < 0)) {
+        bestLow = { cards: combo, ...scoreResult }
+      }
+    }
+
+    return bestLow!
+  }
+
+  /**
+   * 比较高牌（从大到小），返回负数表示 hand1 更好（更低）
+   */
+  function compareHighCards(hand1: number[], hand2: number[]): number {
+    for (let i = 0; i < 5; i++) {
+      if (hand1[i] < hand2[i]) return -1
+      if (hand1[i] > hand2[i]) return 1
+    }
+    return 0
+  }
+
+  /**
+   * 计算Badugi牌的最佳组合
+   * 规则：
+   * 1. 尽可能多的不同花色、不同点数的牌（4张最好）
+   * 2. 如果有相同点数，只能用一张
+   * 3. 如果有相同花色，只能用一张（选点数最低的）
+   * 4. 点数越低越好（A=1）
+   */
+  function getBadugiHand(cards: string[]): { validCards: string[]; count: number; ranks: number[] } {
+    const rankValues: Record<string, number> = {
+      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5,
+      '6': 6, '7': 7, '8': 8, '9': 9, 'T': 10,
+      'J': 11, 'Q': 12, 'K': 13
+    }
+
+    // 转换为solver格式
+    const solverCards = cards.map(toSolverCard)
+
+    // 按点数从小到大排序
+    const sortedCards = solverCards.map(c => ({
+      card: c,
+      rank: c[0],
+      suit: c[1],
+      value: rankValues[c[0]]
+    })).sort((a, b) => a.value - b.value)
+
+    // 贪心算法：按点数从小到大，选择不同花色、不同点数的牌
+    const validCards: string[] = []
+    const usedRanks = new Set<string>()
+    const usedSuits = new Set<string>()
+
+    for (const cardInfo of sortedCards) {
+      if (!usedRanks.has(cardInfo.rank) && !usedSuits.has(cardInfo.suit)) {
+        validCards.push(cardInfo.card)
+        usedRanks.add(cardInfo.rank)
+        usedSuits.add(cardInfo.suit)
+      }
+    }
+
+    // 获取有效牌的点数（从大到小排序用于比较）
+    const ranks = validCards.map(c => rankValues[c[0]]).sort((a, b) => b - a)
+
+    return {
+      validCards,
+      count: validCards.length,
+      ranks
+    }
+  }
+
+  /**
+   * 比较两手Badugi牌
+   * 返回负数表示hand1更好（更低）
+   */
+  function compareBadugiHands(hand1: { count: number; ranks: number[] }, hand2: { count: number; ranks: number[] }): number {
+    // 先比较有效牌的数量，数量多的获胜
+    if (hand1.count > hand2.count) return -1
+    if (hand1.count < hand2.count) return 1
+
+    // 数量相同，从高到低比较每张牌的点数
+    for (let i = 0; i < hand1.count; i++) {
+      if (hand1.ranks[i] < hand2.ranks[i]) return -1 // hand1的高牌更低，更好
+      if (hand1.ranks[i] > hand2.ranks[i]) return 1  // hand2的高牌更低，更好
+    }
+
+    return 0 // 平局
+  }
+
   function checkAnswer() {
+    // Razz 模式只需要选择 Low
+    if (gameMode.value === 'razz') {
+      if (selectedLowSeats.value.length === 0) {
+        ElMessage.warning('Please select the winning player(s) first')
+        return
+      }
+
+      // 计算 Razz Low 赢家
+      const solvedLow = Object.entries(playerHands.value).map(([seat, cards]) => {
+        const lowHand = getRazzLowHand(cards, playerStudCards.value[Number(seat)])
+        return {
+          seat: Number(seat),
+          lowHand,
+        }
+      })
+
+      // 找出最好的 Low 牌
+      let bestLow = solvedLow[0]
+      for (const player of solvedLow) {
+        if (player.lowHand.score < bestLow.lowHand.score ||
+            (player.lowHand.score === bestLow.lowHand.score &&
+             compareHighCards(player.lowHand.highCards, bestLow.lowHand.highCards) < 0)) {
+          bestLow = player
+        }
+      }
+
+      // 找出所有平局的玩家
+      const lowWinnerSeats = solvedLow
+        .filter((p) => p.lowHand.score === bestLow.lowHand.score &&
+                       compareHighCards(p.lowHand.highCards, bestLow.lowHand.highCards) === 0)
+        .map((p) => p.seat)
+        .sort((a, b) => a - b)
+
+      const lowCorrect =
+        lowWinnerSeats.length === selectedLowSeats.value.length &&
+        lowWinnerSeats.every((seat, i) => seat === selectedLowSeats.value[i])
+
+      if (!lowCorrect) {
+        const lowWinnerDetails = lowWinnerSeats
+          .map((seat) => {
+            const player = solvedLow.find((s) => s.seat === seat)
+            return `Player ${seat}: ${player?.lowHand.cards.join(' ')}`
+          })
+          .join('\n')
+
+        resultMessage.value =
+          `Wrong ❌\n\n` +
+          `Low winner(s): ${lowWinnerSeats.join(', ')}\n` +
+          `${lowWinnerDetails}\n\n` +
+          `Your answer: ${selectedLowSeats.value.join(', ') || 'None'}`
+        showResult.value = true
+        return
+      }
+
+      ElMessage.success('Correct! 🎉')
+      showFireworks.value = true
+      setTimeout(dealNewHand, 1200)
+      return
+    }
+
+    // Badugi 模式只需要选择 Low
+    if (gameMode.value === 'badugi') {
+      if (selectedLowSeats.value.length === 0) {
+        ElMessage.warning('Please select the winning player(s) first')
+        return
+      }
+
+      // 计算 Badugi 赢家
+      const solvedBadugi = Object.entries(playerHands.value).map(([seat, cards]) => {
+        const badugiHand = getBadugiHand(cards)
+        return {
+          seat: Number(seat),
+          badugiHand,
+        }
+      })
+
+      // 找出最好的 Badugi 牌
+      let bestBadugi = solvedBadugi[0]
+      for (const player of solvedBadugi) {
+        if (compareBadugiHands(player.badugiHand, bestBadugi.badugiHand) < 0) {
+          bestBadugi = player
+        }
+      }
+
+      // 找出所有平局的玩家
+      const badugiWinnerSeats = solvedBadugi
+        .filter((p) => compareBadugiHands(p.badugiHand, bestBadugi.badugiHand) === 0)
+        .map((p) => p.seat)
+        .sort((a, b) => a - b)
+
+      const badugiCorrect =
+        badugiWinnerSeats.length === selectedLowSeats.value.length &&
+        badugiWinnerSeats.every((seat, i) => seat === selectedLowSeats.value[i])
+
+      if (!badugiCorrect) {
+        const badugiWinnerDetails = badugiWinnerSeats
+          .map((seat) => {
+            const player = solvedBadugi.find((s) => s.seat === seat)
+            const cardCount = player?.badugiHand.count
+            const cardType = cardCount === 4 ? 'Badugi' : `${cardCount}-card`
+            return `Player ${seat}: ${player?.badugiHand.validCards.join(' ')} (${cardType})`
+          })
+          .join('\n')
+
+        resultMessage.value =
+          `Wrong ❌\n\n` +
+          `Winner(s): ${badugiWinnerSeats.join(', ')}\n` +
+          `${badugiWinnerDetails}\n\n` +
+          `Your answer: ${selectedLowSeats.value.join(', ') || 'None'}`
+        showResult.value = true
+        return
+      }
+
+      ElMessage.success('Correct! 🎉')
+      showFireworks.value = true
+      setTimeout(dealNewHand, 1200)
+      return
+    }
+
+    // 其他模式（High 或 High-Low）
     if (selectedHighSeats.value.length === 0 && (gameType.value === 'high' || selectedLowSeats.value.length === 0)) {
       ElMessage.warning('Please select the winning player(s) first')
       return
@@ -672,6 +977,13 @@
     dealNewHand()
     await nextTick()
   })
+
+  // 当切换到 7 Card Stud 或 Razz 模式时，限制最大人数为 6
+  watch(gameMode, (newMode) => {
+    if ((newMode === '7stud' || newMode === 'razz') && playerCount.value > 6) {
+      playerCount.value = 6
+    }
+  })
 </script>
 
 <template>
@@ -718,9 +1030,9 @@
       }">
         <div class="board-overlay">
           <TextureAnalysisPanel :board-cards="boardCards" anchor-selector=".board-overlay" />
-          <!-- 公共牌 (仅在非 7 Card Stud 模式下显示) -->
+          <!-- 公共牌 (仅在非 7 Card Stud、Razz 和 Badugi 模式下显示) -->
           <div
-            v-if="gameMode !== '7stud'"
+            v-if="gameMode !== '7stud' && gameMode !== 'razz' && gameMode !== 'badugi'"
             class="community-cards-group"
             :style="{
               top: communityCardsPosition.top,
@@ -763,8 +1075,8 @@
                 >
                   <CardBack />
                 </div>
-                <!-- Stud Cards (7 Card Stud) -->
-                <div v-if="gameMode === '7stud' && playerStudCards[seat]" class="stud-cards-container" :style="getStudCardContainerStyle(seat)">
+                <!-- Stud Cards (7 Card Stud / Razz) -->
+                <div v-if="(gameMode === '7stud' || gameMode === 'razz') && playerStudCards[seat]" class="stud-cards-container" :style="getStudCardContainerStyle(seat)">
                   <div
                     v-for="(card, i) in playerStudCards[seat]"
                     :key="`stud-${i}`"
@@ -798,8 +1110,8 @@
                     :has-selection="handStatuses[seat] !== 'none' && hasSelection"
                   />
                 </div>
-                <!-- Stud Cards (7 Card Stud) -->
-                <div v-if="gameMode === '7stud' && playerStudCards[seat]" class="stud-cards-container" :style="getStudCardContainerStyle(seat)">
+                <!-- Stud Cards (7 Card Stud / Razz) -->
+                <div v-if="(gameMode === '7stud' || gameMode === 'razz') && playerStudCards[seat]" class="stud-cards-container" :style="getStudCardContainerStyle(seat)">
                   <div
                     v-for="(card, i) in playerStudCards[seat]"
                     :key="`stud-${i}`"

@@ -9,8 +9,8 @@
     x: number
     y: number
     seat: number
-    gameType: 'high' | 'high-low'
-    gameMode: 'holdem' | 'omaha' | 'bigo' | '7stud'
+    gameType: 'high' | 'high-low' | 'a5-low' | '2-7-low' | 'badugi'
+    gameMode: 'holdem' | 'omaha' | 'bigo' | '7stud' | 'razz' | 'badugi'
   }>()
 
   const emit = defineEmits<{
@@ -20,10 +20,15 @@
     (e: 'clear', seat: number): void
   }>()
 
+  const showHigh = computed(() => {
+    // Razz 和 Badugi 模式下不显示 High
+    return props.gameMode !== 'razz' && props.gameMode !== 'badugi'
+  })
+
   const showLow = computed(() => {
     return (
       props.gameType === 'high-low' && (props.gameMode === 'omaha' || props.gameMode === 'bigo' || props.gameMode === '7stud')
-    )
+    ) || props.gameMode === 'razz' || props.gameMode === 'badugi' // Razz 和 Badugi 模式下显示 Low
   })
 </script>
 
@@ -34,7 +39,7 @@
     :style="{ left: `${x}px`, top: `${y}px` }"
     @click.stop
   >
-    <div class="menu-item" @click="emit('mark-high', seat)">
+    <div v-if="showHigh" class="menu-item" @click="emit('mark-high', seat)">
       <span class="menu-dot high"></span>
       <span class="menu-text">{{ markHigh }}</span>
     </div>
