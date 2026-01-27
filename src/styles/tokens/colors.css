@@ -20,4 +20,8 @@
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-error: #ef4444;
+
+  --stat-neutral: #303133;
+  --stat-success: #2f7d4c;
+  --stat-time: #5b6b8a;
 }

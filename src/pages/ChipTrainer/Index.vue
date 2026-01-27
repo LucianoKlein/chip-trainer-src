@@ -1,14 +1,23 @@
 <script setup lang="ts">
+  import { ref, computed, watch } from 'vue'
+
   import TournamentAnswerInput from './components/TournamentAnswerInput.vue'
   import GameConfigPanel from './components/GameConfigPanel.vue'
   import ChipBoard from './components/ChipBoard.vue'
   import AnswerActions from './components/AnswerActions.vue'
-  import { ref, computed, watch } from 'vue'
+
   import { useTournamentGame } from './customHooks/useTournamentGame'
   import { CashColor, useCashGame } from './customHooks/useCashGame'
   import { TournamentColor } from './utils/tournamentConfig'
+
   import useChipTrainingI18n from '../../i18n/customHook/chipTraining/useChipTraining'
   import useUISystem from '@/i18n/customHook/UI/useUISystem'
+
+  import { useUserStore } from '@/stores/user'
+  import { update, initSession, flush, addDetail } from '@/trainer'
+  import { createSessionContext } from '@/trainer/session/session.create'
+
+  /* ================= i18n ================= */
   const {
     pageTitle,
     chipConfig,
@@ -28,13 +37,28 @@
     grey,
     blue,
   } = useChipTrainingI18n()
+
   const { save, cancel } = useUISystem()
+
+  /* ================= store ================= */
+  const userStore = useUserStore()
+
+  /* ================= 基础状态 ================= */
   const tournamentInputRef = ref<InstanceType<typeof TournamentAnswerInput> | null>(null)
-  const round = ref(0)
-  const chipGroups = ref([])
+
+  const round = ref(0) // UI 展示用
+  const answeredCount = ref(0) // 业务用（关键）
+  const questionStartAt = ref(Date.now())
+
+  const chipGroups = ref<any[]>([])
   const correctValue = ref(0)
   const userInput = ref('')
-  const feedback = ref('idle')
+  const feedback = ref<'idle' | 'correct' | 'wrong'>('idle')
+
+  const wrongDetails = ref<any[]>([])
+
+  /* ================= 模式 ================= */
+  const gameType = ref<'cash' | 'tournament'>('cash')
 
   const tournamentColors = ref<TournamentColor[]>([
     'green25k',
@@ -60,9 +84,6 @@
     'red5k',
     'green25k',
   ])
-  const gameType = ref<'cash' | 'tournament'>('cash')
-  const cashPreset = ref<string>('none')
-  const tournamentPreset = ref<string>('none')
 
   const showAnswer = ref(false)
   const showChipConfig = ref(false)
@@ -101,7 +122,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     red_rock_1_3: {
       colors: ['white1', 'pink2', 'red5', 'green25'],
@@ -128,7 +149,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     red_rock_5_5: {
       colors: ['red5', 'green25', 'black100'],
@@ -155,7 +176,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     wynn_1_3: {
       colors: ['white1', 'red5', 'green25', 'black100'],
@@ -182,7 +203,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     red_rock_bank: {
       colors: ['white1', 'pink2', 'red5'],
@@ -209,7 +230,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     wynn_bank: {
       colors: ['white1', 'pink2', 'red5', 'black100'],
@@ -236,7 +257,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     wsop_bank: {
       colors: ['white1', 'pink2', 'red5'],
@@ -263,7 +284,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     bellagio_bank: {
       colors: ['white1', 'brown3', 'red5', 'black100'],
@@ -290,7 +311,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     bellagio_1_3: {
       colors: ['white1', 'brown3', 'red5', 'green25', 'black100'],
@@ -317,7 +338,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     bellagio_2_5: {
       colors: ['white1', 'brown3', 'red5', 'green25', 'black100', 'purple500'],
@@ -344,7 +365,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
     wynn_2_5: {
       colors: ['white1', 'red5', 'green25', 'black100', 'purple500'],
@@ -371,7 +392,7 @@
         yellow1k: 0,
         red5k: 0,
         green25k: 0,
-      }
+      },
     },
   }
 
@@ -389,7 +410,7 @@
         pink500k: 20,
         orange1m: 20,
         grey5m: 20,
-      }
+      },
     },
     day1_early: {
       colors: ['black100', 'purple500', 'yellow1k', 'red5k', 'green25k'],
@@ -403,7 +424,7 @@
         pink500k: 0,
         orange1m: 0,
         grey5m: 0,
-      }
+      },
     },
     day1_first_color_up: {
       colors: ['purple500', 'yellow1k', 'red5k', 'green25k', 'blue100k'],
@@ -417,7 +438,7 @@
         pink500k: 0,
         orange1m: 0,
         grey5m: 0,
-      }
+      },
     },
     day1_second_color_up: {
       colors: ['yellow1k', 'red5k', 'green25k', 'blue100k'],
@@ -431,7 +452,7 @@
         pink500k: 0,
         orange1m: 0,
         grey5m: 0,
-      }
+      },
     },
     day2_first_color_up: {
       colors: ['red5k', 'green25k', 'blue100k', 'pink500k'],
@@ -445,7 +466,7 @@
         pink500k: 40,
         orange1m: 0,
         grey5m: 0,
-      }
+      },
     },
     day2_second_color_up: {
       colors: ['green25k', 'blue100k', 'pink500k', 'orange1m'],
@@ -459,7 +480,7 @@
         pink500k: 60,
         orange1m: 20,
         grey5m: 0,
-      }
+      },
     },
     final_table: {
       colors: ['blue100k', 'pink500k', 'orange1m', 'grey5m'],
@@ -473,7 +494,7 @@
         pink500k: 60,
         orange1m: 40,
         grey5m: 20,
-      }
+      },
     },
   }
 
@@ -516,21 +537,6 @@
     grey5m: 20,
   })
 
-  function saveChipConfig() {
-    showChipConfig.value = false
-    showChipConfig.value = false
-
-    // 保存配置后，切换到新规则题目
-    userInput.value = ''
-    feedback.value = 'idle'
-
-    if (gameType.value === 'tournament') {
-      tournamentInputRef.value?.reset()
-    }
-
-    newRound()
-  }
-
   /* ================= 出题 ================= */
   function newRound() {
     round.value++
@@ -541,136 +547,23 @@
     chipGroups.value = groups as any
     correctValue.value = total
     showAnswer.value = false
+    questionStartAt.value = Date.now()
   }
 
-  /* 切换模式自动切题 */
-  watch(gameType, (type) => {
+  /* ================= 保存配置 ================= */
+  function saveChipConfig() {
+    showChipConfig.value = false
     userInput.value = ''
     feedback.value = 'idle'
-    if (type === 'tournament') {
+
+    if (gameType.value === 'tournament') {
       tournamentInputRef.value?.reset()
     }
+
     newRound()
-  })
+  }
 
-  /* ================= 颜色切换 → 切题 ================= */
-  watch(
-    [enabledColors, tournamentColors],
-    () => {
-      userInput.value = ''
-      feedback.value = 'idle'
-
-      if (gameType.value === 'tournament') {
-        tournamentInputRef.value?.reset()
-      }
-
-      newRound()
-    },
-    { deep: true }
-  )
-
-  /* ================= 预设切换 → 应用配置 ================= */
-  watch(cashPreset, (preset) => {
-    // 如果是自动切换到"无预设"，只改变下拉框值，不应用配置
-    if (isAutoSwitchingCashPreset.value) {
-      isAutoSwitchingCashPreset.value = false
-      return
-    }
-
-    const config = CASH_PRESETS[preset as keyof typeof CASH_PRESETS]
-    if (config) {
-      isApplyingCashPreset.value = true
-
-      // 只有配置中有 colors 字段时才应用颜色
-      if ('colors' in config && config.colors) {
-        enabledColors.value = config.colors as CashColor[]
-      }
-
-      Object.assign(cashChipLimits.value, config.limits)
-      if (config.minLimits) {
-        Object.assign(cashChipMinLimits.value, config.minLimits)
-      }
-
-      // 使用 nextTick 确保所有更新完成后再重置标志位
-      setTimeout(() => {
-        isApplyingCashPreset.value = false
-      }, 0)
-    }
-  })
-
-  watch(tournamentPreset, (preset) => {
-    // 如果是自动切换到"无预设"，只改变下拉框值，不应用配置
-    if (isAutoSwitchingTournamentPreset.value) {
-      isAutoSwitchingTournamentPreset.value = false
-      return
-    }
-
-    const config = TOURNAMENT_PRESETS[preset as keyof typeof TOURNAMENT_PRESETS]
-    if (config) {
-      isApplyingTournamentPreset.value = true
-
-      // 只有配置中有 colors 字段时才应用颜色
-      if ('colors' in config && config.colors) {
-        tournamentColors.value = config.colors as TournamentColor[]
-      }
-
-      Object.assign(tournamentChipLimits.value, config.limits)
-
-      setTimeout(() => {
-        isApplyingTournamentPreset.value = false
-      }, 0)
-    }
-  })
-
-  /* ================= 用户手动修改 → 自动切换到无预设 ================= */
-  // 监听现金桌颜色选择的手动修改
-  watch(
-    enabledColors,
-    () => {
-      if (!isApplyingCashPreset.value && cashPreset.value !== 'none') {
-        isAutoSwitchingCashPreset.value = true
-        cashPreset.value = 'none'
-      }
-    },
-    { deep: true }
-  )
-
-  // 监听现金桌筹码限制的手动修改
-  watch(
-    cashChipLimits,
-    () => {
-      if (!isApplyingCashPreset.value && cashPreset.value !== 'none') {
-        isAutoSwitchingCashPreset.value = true
-        cashPreset.value = 'none'
-      }
-    },
-    { deep: true }
-  )
-
-  // 监听锦标赛颜色选择的手动修改
-  watch(
-    tournamentColors,
-    () => {
-      if (!isApplyingTournamentPreset.value && tournamentPreset.value !== 'none') {
-        isAutoSwitchingTournamentPreset.value = true
-        tournamentPreset.value = 'none'
-      }
-    },
-    { deep: true }
-  )
-
-  // 监听锦标赛筹码限制的手动修改
-  watch(
-    tournamentChipLimits,
-    () => {
-      if (!isApplyingTournamentPreset.value && tournamentPreset.value !== 'none') {
-        isAutoSwitchingTournamentPreset.value = true
-        tournamentPreset.value = 'none'
-      }
-    },
-    { deep: true }
-  )
-
+  /* ================= 核心：提交答案 ================= */
   function onSubmit() {
     const val = Number(userInput.value)
 
@@ -687,10 +580,40 @@
       userInput.value = ''
     }
 
+    if (!isCorrect) {
+      const detail = {
+        category: 'chip_trainer',
+        key: 'wrong_case',
+        payload: {
+          userAnswer: val,
+          correctValue: correctValue.value,
+          chipGroups: chipGroups.value,
+        },
+        createdAt: Date.now(),
+        mode: 'chip',
+        subMode: gameType.value,
+      }
+
+      wrongDetails.value.push(detail)
+      addDetail(detail)
+    }
+
+    const answerTimeMs = Date.now() - questionStartAt.value
+
+    update({
+      isCorrect,
+      answerTimeMs,
+    })
+
+    answeredCount.value++
+
+    // ===== 10 题一个 Session（UI 同步）=====
+    if (answeredCount.value % 10 === 0) {
+      wrongDetails.value = []
+    }
+
     if (isCorrect) {
-      setTimeout(() => {
-        newRound()
-      }, 700)
+      setTimeout(newRound, 700)
     }
   }
 
@@ -698,21 +621,73 @@
     showAnswer.value = !showAnswer.value
   }
 
-  /* ================= 核心：接入 limits ================= */
-  const gameEngine = computed(() => {
-    if (gameType.value === 'tournament') {
-      return useTournamentGame({
-        colors: tournamentColors.value,
-        limits: tournamentChipLimits.value,
-      })
+  /* ================= gameType 切换 = Session 边界 ================= */
+  watch(gameType, async (type) => {
+    // 1️⃣ 切模式前：强制落库（哪怕不足 10 题）
+    if (answeredCount.value > 0) {
+      await flush(true)
     }
 
-    return useCashGame({
-      enabledColors: enabledColors.value,
-      limits: cashChipLimits.value,
-      minLimits: cashChipMinLimits.value,
-    })
+    // 2️⃣ UI & 状态重置
+    answeredCount.value = 0
+    wrongDetails.value = []
+    userInput.value = ''
+    feedback.value = 'idle'
+
+    // 3️⃣ 开一个全新的 Session
+    const profile = userStore.profile
+    if (profile) {
+      initSession(createSessionContext({ uid: profile.uid, email: profile.email }, 'chip', type))
+    }
+
+    if (type === 'tournament') {
+      tournamentInputRef.value?.reset()
+    }
+
+    newRound()
   })
+
+  /* ================= 颜色切换只影响出题 ================= */
+  watch(
+    [enabledColors, tournamentColors],
+    () => {
+      userInput.value = ''
+      feedback.value = 'idle'
+
+      if (gameType.value === 'tournament') {
+        tournamentInputRef.value?.reset()
+      }
+
+      newRound()
+    },
+    { deep: true }
+  )
+
+  /* ================= 游戏引擎 ================= */
+  const gameEngine = computed(() => {
+    return gameType.value === 'tournament'
+      ? useTournamentGame({
+          colors: tournamentColors.value,
+          limits: tournamentChipLimits.value,
+        })
+      : useCashGame({
+          enabledColors: enabledColors.value,
+          limits: cashChipLimits.value,
+        })
+  })
+
+  /* ================= 初始化 Session（来自 store） ================= */
+  watch(
+    () => userStore.profile,
+    (profile) => {
+      if (!profile) return
+
+      initSession(
+        createSessionContext({ uid: profile.uid, email: profile.email }, 'chip', gameType.value)
+      )
+    },
+    { immediate: true }
+  )
 
   newRound()
 </script>

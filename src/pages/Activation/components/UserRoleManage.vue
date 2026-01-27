@@ -1,120 +1,21 @@
 <script setup lang="ts">
-  import { ref, onMounted, watch } from 'vue'
+  import { onMounted } from 'vue'
   import { ElMessage, ElMessageBox } from 'element-plus'
-  import {
-    collection,
-    getDocs,
-    query,
-    orderBy,
-    startAfter,
-    limit,
-    where,
-    updateDoc,
-    doc,
-  } from 'firebase/firestore'
+  import { updateDoc, doc } from 'firebase/firestore'
   import { db } from '@/firebase'
 
-  type UserItem = {
-    uid: string
-    email: string
-    role: 'admin' | 'user'
-    createdAt: Date | null
-  }
+  import { useUserList, type UserItem } from '@/composables/useUserList'
 
-  /* ================= 状态 ================= */
+  /* ================= 用户列表 ================= */
 
-  const users = ref<UserItem[]>([])
-  const keyword = ref('')
-  const loading = ref(false)
+  const { users, keyword, loading, currentPage, total, pageSize, loadUsers, handlePageChange } =
+    useUserList(10)
 
-  const pageSize = 10
-  const currentPage = ref(1)
-  const total = ref(0)
+  /* ================= 初始化 ================= */
 
-  /**
-   * Firestore 分页游标
-   */
-  let lastVisible: any = null
-
-  /* ================= 数据加载（后台分页 + 搜索） ================= */
-
-  async function loadUsers(reset = false) {
-    loading.value = true
-
-    try {
-      if (reset) {
-        users.value = []
-        currentPage.value = 1
-        lastVisible = null
-      }
-
-      const baseRef = collection(db, 'users')
-
-      let q
-
-      if (keyword.value) {
-        /**
-         * 后台邮箱搜索（前缀匹配）
-         * 需要 email 字段 + orderBy(email)
-         */
-        q = query(
-          baseRef,
-          orderBy('email'),
-          where('email', '>=', keyword.value),
-          where('email', '<=', keyword.value + '\uf8ff'),
-          limit(pageSize)
-        )
-      } else {
-        q = query(
-          baseRef,
-          orderBy('createdAt', 'desc'),
-          ...(lastVisible ? [startAfter(lastVisible)] : []),
-          limit(pageSize)
-        )
-      }
-
-      const snap = await getDocs(q)
-
-      if (snap.empty) {
-        users.value = []
-        total.value = 0
-        return
-      }
-
-      lastVisible = snap.docs[snap.docs.length - 1]
-
-      users.value = snap.docs.map((d) => {
-        const data = d.data()
-        return {
-          uid: d.id,
-          email: data.email,
-          role: data.role ?? 'user',
-          createdAt: data.createdAt?.toDate?.() ?? null,
-        }
-      })
-
-      /**
-       * total：Firestore 无法直接 count
-       * 这里是近似方案（管理页够用）
-       */
-      total.value = users.value.length + (currentPage.value - 1) * pageSize
-    } finally {
-      loading.value = false
-    }
-  }
-
-  onMounted(() => loadUsers(true))
-
-  watch(keyword, () => {
+  onMounted(() => {
     loadUsers(true)
   })
-
-  /* ================= 分页 ================= */
-
-  function handlePageChange(page: number) {
-    currentPage.value = page
-    loadUsers()
-  }
 
   /* ================= 操作 ================= */
 
@@ -197,14 +98,6 @@
 </template>
 
 <style scoped>
-  /* ================= 页面 ================= */
-
-  .page-simple {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: var(--space-6);
-  }
-
   /* ================= ui-panel ================= */
 
   .admin-panel {

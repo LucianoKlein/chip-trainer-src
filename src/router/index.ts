@@ -1,9 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { auth, db } from '@/firebase'
 import MainLayout from '@/layouts/MainLayout/MainLayout.vue'
 import ChipTrainer from '@/pages/ChipTrainer/Index.vue'
 import Login from '@/pages/Login/Index.vue'
-import { doc, getDoc } from 'firebase/firestore'
 import BoardAnalysis from '@/pages/BoardAnalysis/Index.vue'
 import { useUserStore } from '@/stores/user'
 const router = createRouter({
@@ -42,6 +40,12 @@ const router = createRouter({
           path: 'profile',
           name: 'Profile',
           component: () => import('@/pages/Profile/Index.vue'),
+          meta: { layout: 'simple' }, // 无 Sidebar
+        },
+        {
+          path: 'test',
+          name: 'Test',
+          component: () => import('@/pages/TestPage/Index.vue'),
           meta: { layout: 'simple' }, // 无 Sidebar
         },
         {
