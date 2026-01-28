@@ -3,7 +3,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc --watch --preserveWatchOutput",
-    "dev": "concurrently -k -n \"tsc,emulator\" -c \"cyan,green\" \"yarn build:watch\" \"firebase emulators:start --only functions\"",
+    "dev": "concurrently -k -n \"tsc,emulators\" -c \"cyan,green\" \"yarn build:watch\" \"firebase emulators:start --only functions,firestore\"",
     "deploy": "yarn build && firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
