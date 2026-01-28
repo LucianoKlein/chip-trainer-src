@@ -112,18 +112,10 @@
             @update:model-value="emit('update:enabledColors', $event)"
           >
             <el-space size="large">
-              <el-checkbox label="white1" v-if="isCashColorEnabled('white1')"
-                >{{ white }} ($1)</el-checkbox
-              >
-              <el-checkbox label="pink2" v-if="isCashColorEnabled('pink2')"
-                >{{ pink }} ($2)</el-checkbox
-              >
-              <el-checkbox label="brown3" v-if="isCashColorEnabled('brown3')"
-                >{{ brown }} ($3)</el-checkbox
-              >
-              <el-checkbox label="red5" v-if="isCashColorEnabled('red5')"
-                >{{ red }} ($5)</el-checkbox
-              >
+              <el-checkbox label="white1">{{ white }} ($1)</el-checkbox>
+              <el-checkbox label="pink2">{{ pink }} ($2)</el-checkbox>
+              <el-checkbox label="brown3">{{ brown }} ($3)</el-checkbox>
+              <el-checkbox label="red5">{{ red }} ($5)</el-checkbox>
               <el-checkbox label="green25">{{ green }} ($25)</el-checkbox>
               <el-checkbox label="black100">{{ black }} ($100)</el-checkbox>
               <el-checkbox label="purple500">{{ purple }} ($500)</el-checkbox>
